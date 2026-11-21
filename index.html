@@ -163,6 +163,8 @@ const FB_CONFIG = {apiKey:"AIzaSyCgIGdamYMTldiDZnDyC4mFeCpzaq-4VVw",authDomain:"
   storageBucket:"marble-motion.firebasestorage.app",messagingSenderId:"774795996833",appId:"1:774795996833:web:202546d0e66344984ccae0"};
 const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
+const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
+const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -364,7 +366,7 @@ function seed(){
   const orders=[]; // no demo orders until retail prices are set
 
   return {products,orders,settings:{
-    shopName:'Marble Motion', tagline:'Build-your-own 3D printed marble towers',
+    shopName:'Marble Motion', tagline:'Build-your-own 3D printed marble towers', notifyEmail:'service@emmersonlocksmiths.com.au',
     legalName:'Emmerson Locksmiths Pty Ltd', abn:'', gstRegistered:false, contactEmail:'', contactPhone:'',
     bankName:'', bsb:'', accountNo:'', accountName:'', payId:'',
     paymentTerms:'Payment due within 7 days. Please use your order number as the payment reference. Printing starts once payment is received.',
@@ -700,7 +702,7 @@ function submitCheckout(form){
     items:cartLines().map(l=>makeLine(l.product,l,Store.products,c)),
     subtotal:t.subtotal, shipping:t.shipping, total:t.total, status:'new', paid:false, notes:(f.notes||'').trim(), adminNotes:'',
     costPackaging:cloudCust?null:num(c.packagingPerOrder), costPostage:cloudCust?null:(post?num(c.postageActual):0), costFees:cloudCust?null:+(t.total*num(c.paymentFeePct)/100).toFixed(2) })
-  .then(order=>{ ui.seenOrders=Store.orders.length; cart=[]; saveCart(); ui.lastOrder=order; go('thanks'); })
+  .then(order=>{ ui.seenOrders=Store.orders.length; cart=[]; saveCart(); ui.lastOrder=order; if(CLOUD) sendOrderEmails(order); go('thanks'); })
   .catch(e=>{ console.error(e); if(btn){ btn.disabled=false; btn.textContent='Submit order'; } $('#ck-err').textContent='Sorry, your order didn\'t go through ('+(e.code||'connection problem')+'). Please try again.'; });
 }
 
@@ -709,7 +711,7 @@ function viewThanks(){
   const o=ui.lastOrder; if(!o){ setTimeout(()=>go('shop')); return ''; }
   return `<div class="panel" style="text-align:center;margin-bottom:18px">
       <div style="font-size:44px">🎉</div><h1 style="margin:6px 0">Thanks, ${esc(o.customer.name.split(' ')[0])}!</h1>
-      <p class="muted" style="margin:0 0 14px">Order <b>${esc(o.number)}</b> is in. A copy of this invoice has been sent to <b>${esc(o.customer.email)}</b>.</p>
+      <p class="muted" style="margin:0 0 14px">Order <b>${esc(o.number)}</b> is in. ${o.emailStatus==='sent'?`We've emailed your invoice to <b>${esc(o.customer.email)}</b>.`:o.emailStatus==='sending'?`Emailing your invoice to <b>${esc(o.customer.email)}</b>…`:o.emailStatus==='failed'?`We couldn't email your invoice, so please save or print it below.`:'Please save or print your invoice below.'}</p>
       <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-act="printInvoice" data-id="${o.id}">🖨️ Print / save PDF</button><a class="btn primary" href="#shop">Back to shop</a></div>
     </div>${invoiceHTML(o)}`;
 }
@@ -805,10 +807,11 @@ function orderModal(o){
     ${printList(o)}
     <label class="f">Private notes<textarea rows="2" data-chg="orderNotes" data-id="${o.id}">${esc(o.adminNotes)}</textarea></label>
     <div class="row" style="margin-top:14px;flex-wrap:wrap"><button class="btn" data-act="viewInvoice" data-id="${o.id}">🧾 View invoice</button>
+      ${CLOUD?`<button class="btn" data-act="emailCustomer" data-id="${o.id}">✉️ Email ${o.paid?'receipt':'invoice'} to customer</button>`:''}
       <div class="spacer"></div><button class="btn danger sm" data-act="deleteOrder" data-id="${o.id}">Delete order</button></div>
   </div></div>`;
 }
-function printList(o){ // everything to print and pack, totalled by piece and colour
+function printListData(o){
   const prints={}, packs={};
   const add=(name,colour,q)=>{const k=name+'|'+colour; prints[k]=(prints[k]||0)+q;};
   o.items.forEach(i=>{
@@ -816,10 +819,76 @@ function printList(o){ // everything to print and pack, totalled by piece and co
     else if(i.type==='kit'){ (i.picks||[]).forEach(x=>add(x.name,i.colour,x.qty*i.qty)); (i.fixed||[]).forEach(x=>add(x.name,i.colour,x.qty*i.qty)); if(i.marbles) packs[i.marbles]=(packs[i.marbles]||0)+i.qty; }
     else if(i.tier==='marbles') packs[i.name]=(packs[i.name]||0)+i.qty; else add(i.name,i.colour,i.qty);
   });
-  const rows=Object.entries(prints).sort((a,b)=>a[0].split('|')[1].localeCompare(b[0].split('|')[1])||a[0].localeCompare(b[0]));
+  const rows=Object.entries(prints).sort((a,b)=>a[0].split('|')[1].localeCompare(b[0].split('|')[1])||a[0].localeCompare(b[0])).map(([k,q])=>{const [n,c]=k.split('|');return [n,c,q];});
+  return {rows,packs:Object.entries(packs)};
+}
+function printList(o){ // everything to print and pack, totalled by piece and colour
+  const {rows,packs}=printListData(o);
   return `<div class="includes" style="margin-bottom:12px"><b>🖨️ Print & pack list</b><ul>
-    ${rows.map(([k,q])=>{const [n,c]=k.split('|');return `<li>${q} × ${esc(n)} ${c?`— ${swatch(c)}${esc(c)}`:''}</li>`;}).join('')}
-    ${Object.entries(packs).map(([n,q])=>`<li>${q} × ${esc(n)}</li>`).join('')}</ul></div>`;
+    ${rows.map(([n,c,q])=>`<li>${q} × ${esc(n)} ${c?`— ${swatch(c)}${esc(c)}`:''}</li>`).join('')}
+    ${packs.map(([n,q])=>`<li>${q} × ${esc(n)}</li>`).join('')}</ul></div>`;
+}
+
+/* ---------- emails (EmailJS, live site only) ---------- */
+const notifyEmail = () => Store.settings.notifyEmail || 'service@emmersonlocksmiths.com.au';
+async function sendEmail(to, subject, html, replyTo){
+  if(!CLOUD) throw new Error('Emails only send from the live site');
+  if(!window.emailjs) await Cloud.loadScript('https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js');
+  emailjs.init({publicKey:EMAILJS.publicKey});
+  return emailjs.send(EMAILJS.serviceId, EMAILJS.templateId, {to_email:to, subject, html, from_name:Store.settings.shopName||'Marble Motion', reply_to:replyTo||notifyEmail()});
+}
+const eWrap = (inner) => `<div style="background:#F6F2EA;padding:24px 12px;font-family:Arial,Helvetica,sans-serif;color:#1F2430"><div style="max-width:620px;margin:0 auto;background:#fff;border-radius:14px;padding:26px;border:1px solid #E8E1D5">${inner}</div></div>`;
+const eRow = (a,b,bold) => `<tr><td style="padding:4px 0;${bold?'font-weight:bold;font-size:17px;border-top:2px solid #1F2430;padding-top:8px':''}">${a}</td><td style="padding:4px 0;text-align:right;${bold?'font-weight:bold;font-size:17px;border-top:2px solid #1F2430;padding-top:8px':''}">${b}</td></tr>`;
+function emailInvoiceHTML(o, paidReceipt){
+  const s=Store.settings, gst=s.gstRegistered;
+  const bank=[s.accountName&&`Account name: <b>${esc(s.accountName)}</b>`,s.bankName&&`Bank: ${esc(s.bankName)}`,s.bsb&&`BSB: <b>${esc(s.bsb)}</b>`,s.accountNo&&`Account: <b>${esc(s.accountNo)}</b>`,s.payId&&`PayID: <b>${esc(s.payId)}</b>`].filter(Boolean);
+  return eWrap(`
+    <table style="width:100%;border-collapse:collapse"><tr><td><div style="font-size:22px;font-weight:bold">${esc(s.shopName)}</div>
+      <div style="font-size:12px;color:#666">Operated by ${esc(s.legalName)}${s.abn?` · ABN ${esc(s.abn)}`:''}</div></td>
+      <td style="text-align:right;vertical-align:top"><div style="font-size:18px;font-weight:bold;letter-spacing:1px">${paidReceipt?'RECEIPT':gst?'TAX INVOICE':'INVOICE'}</div>
+      <div style="font-size:12px;color:#666">No. <b>${esc(o.number)}</b><br>${fmtDate(o.createdAt)}</div></td></tr></table>
+    <p style="margin:18px 0 6px">Hi ${esc(o.customer.name.split(' ')[0])},</p>
+    <p style="margin:0 0 14px">${paidReceipt?'Thanks for your payment. Here is your receipt.':'Thanks for your order, we\'ve received it! This email is your order confirmation and invoice. We start printing once payment is received.'}</p>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;background:#F6F2EA;border-radius:10px;margin-bottom:16px"><tr>
+      <td style="padding:12px;vertical-align:top;width:50%"><div style="font-size:11px;color:#777;font-weight:bold;letter-spacing:.5px">ORDER DETAILS</div>
+        Order no. <b>${esc(o.number)}</b><br>Placed ${fmtDateTime(o.createdAt)}<br>${o.delivery==='post'?'Delivery: Post':'Delivery: Pickup'}<br>Status: <b>${o.paid?'Paid':'Awaiting payment'}</b></td>
+      <td style="padding:12px;vertical-align:top"><div style="font-size:11px;color:#777;font-weight:bold;letter-spacing:.5px">YOUR DETAILS</div>
+        ${esc(o.customer.name)}<br>${esc(o.customer.phone)}<br>${esc(o.customer.email)}${o.customer.address?'<br>'+esc(o.customer.address).replace(/\n/g,'<br>'):''}</td></tr></table>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <tr><th style="text-align:left;border-bottom:1px solid #ccc;padding:6px 0">Item</th><th style="text-align:right;border-bottom:1px solid #ccc">Qty</th><th style="text-align:right;border-bottom:1px solid #ccc">Amount</th></tr>
+      ${o.items.map(i=>`<tr><td style="padding:8px 0;border-bottom:1px solid #eee">${esc(i.name)}${i.colour?` <span style="color:#777">(${esc(i.colour)})</span>`:''}${i.type==='kit'?`<div style="font-size:12px;color:#777">${esc(itemContents(i))}</div>`:''}</td>
+        <td style="text-align:right;border-bottom:1px solid #eee">${i.qty}</td><td style="text-align:right;border-bottom:1px solid #eee">${money(i.price*i.qty)}</td></tr>`).join('')}
+    </table>
+    <table style="width:260px;margin:12px 0 0 auto;border-collapse:collapse;font-size:14px">
+      ${eRow('Subtotal',money(o.subtotal))}${eRow(o.delivery==='post'?'Postage':'Pickup',money(o.shipping))}${eRow('Total'+(gst?' (inc. GST)':''),money(o.total),true)}
+      ${gst?eRow('GST included',money(o.total/11)):''}${paidReceipt||o.paid?eRow('<span style="color:#22794F;font-weight:bold">PAID</span>','<span style="color:#22794F">✓</span>'):''}
+    </table>
+    ${!gst?`<div style="font-size:12px;color:#777;margin-top:6px">No GST has been charged.</div>`:''}
+    ${paidReceipt||o.paid?'':`<div style="background:#F6F6F6;border-radius:10px;padding:14px;margin-top:18px;font-size:14px;line-height:1.7"><b>How to pay</b><br>
+      ${bank.length?bank.join('<br>'):'We\'ll send you our payment details shortly.'}<br>Reference: <b>${esc(o.number)}</b>
+      <div style="font-size:13px;color:#555;margin-top:6px">${esc(s.paymentTerms)}</div></div>`}
+    <p style="font-size:14px;margin-top:18px">${o.delivery==='pickup'?esc(s.pickupNote):'We\'ll post your order to:<br>'+esc(o.customer.address).replace(/\n/g,'<br>')}</p>
+    <p style="font-size:13px;color:#777;margin-top:18px">Questions? Just reply to this email${s.contactPhone?` or call ${esc(s.contactPhone)}`:''}.</p>`);
+}
+function emailNewOrderHTML(o){
+  const {rows,packs}=printListData(o);
+  return eWrap(`<div style="font-size:20px;font-weight:bold;margin-bottom:4px">🛒 New order ${esc(o.number)}</div>
+    <div style="color:#666;font-size:13px;margin-bottom:14px">${fmtDateTime(o.createdAt)} · <b>${money(o.total)}</b> · ${o.delivery==='post'?'📮 Post':'🤝 Pickup'}</div>
+    <div style="background:#F6F2EA;border-radius:10px;padding:12px;font-size:14px;line-height:1.6"><b>${esc(o.customer.name)}</b><br>${esc(o.customer.phone)}<br>${esc(o.customer.email)}${o.customer.address?'<br>'+esc(o.customer.address).replace(/\n/g,'<br>'):''}
+      ${o.notes?`<div style="margin-top:6px"><b>Note:</b> ${esc(o.notes)}</div>`:''}</div>
+    <div style="font-weight:bold;margin:16px 0 6px">Order</div>
+    ${o.items.map(i=>`<div style="font-size:14px;margin-bottom:6px">${i.qty} × <b>${esc(i.name)}</b>${i.colour?` (${esc(i.colour)})`:''} — ${money(i.price*i.qty)}</div>`).join('')}
+    <div style="font-weight:bold;margin:16px 0 6px">🖨️ Print & pack list</div>
+    <ul style="font-size:14px;margin:0;padding-left:18px">${rows.map(([n,c,q])=>`<li>${q} × ${esc(n)}${c?` — ${esc(c)}`:''}</li>`).join('')}${packs.map(([n,q])=>`<li>${q} × ${esc(n)}</li>`).join('')}</ul>
+    <p style="margin-top:20px"><a href="${ADMIN_LINK}" style="background:#2F5FD0;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">Open in admin</a></p>`);
+}
+function sendOrderEmails(o){
+  o.emailStatus='sending';
+  const s=Store.settings, reply=s.contactEmail||notifyEmail();
+  sendEmail(notifyEmail(), `🛒 New Marble Motion order ${o.number} · ${money(o.total)} · ${o.customer.name}`, emailNewOrderHTML(o), o.customer.email).catch(e=>console.warn('Admin email failed',e));
+  sendEmail(o.customer.email, `Order confirmation & invoice · ${s.shopName} ${o.number}`, emailInvoiceHTML(o), reply)
+    .then(()=>{ o.emailStatus='sent'; if(route()==='thanks') render(); })
+    .catch(e=>{ console.warn('Customer email failed',e); o.emailStatus='failed'; if(route()==='thanks') render(); });
 }
 
 function adminShop(){
@@ -1016,7 +1085,8 @@ function adminSettings(){
     <div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Shop & invoice branding</h3><div class="form-grid">
       ${F('shopName','Shop name','shown on the shop and invoices')}${F('tagline','Tagline')}
       ${F('legalName','Operated by','legal entity on the invoice')}${F('abn','ABN')}
-      ${F('contactEmail','Contact email','','email')}${F('contactPhone','Contact phone','','tel')}
+      ${F('contactEmail','Contact email','customers reply to this','email')}${F('contactPhone','Contact phone','','tel')}
+      ${F('notifyEmail','New order alerts go to','your email','email')}
       <label class="switch full"><input type="checkbox" name="gstRegistered" ${s.gstRegistered?'checked':''}> Registered for GST (shows "Tax invoice" and the GST amount)</label></div></div>
     <div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Payment details on invoices</h3><div class="form-grid">
       ${F('accountName','Account name')}${F('bankName','Bank')}${F('bsb','BSB')}${F('accountNo','Account number')}${F('payId','PayID','optional')}
@@ -1277,6 +1347,9 @@ const actions = {
   colSave:()=>{ const e=ui.colEdit, name=(document.getElementById('ce-name').value||'').trim(); if(!name){ toast('Give the colour a name'); return; }
     const c={name,hex:hsvToHex(e)}, list=Store.settings.palettes[e.i].colours; e.j>=0?list[e.j]=c:list.push(c); Store.save(); ui.colEdit=null; render(); toast('Colour saved'); },
   colDelete:()=>{ const e=ui.colEdit; confirmBox('Delete this colour from the palette?',()=>{ Store.settings.palettes[e.i].colours.splice(e.j,1); Store.save(); ui.colEdit=null; render(); toast('Colour deleted'); }); },
+  emailCustomer:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; el.disabled=true; el.textContent='Sending…';
+    sendEmail(o.customer.email, `Your ${Store.settings.shopName} ${o.paid?'receipt':'invoice'} ${o.number}`, emailInvoiceHTML(o,o.paid), Store.settings.contactEmail||notifyEmail())
+      .then(()=>{ toast('Emailed to '+o.customer.email); renderModal(); }).catch(e=>{ toast('Email failed: '+(e.text||e.message||'error')); renderModal(); }); },
   cloudSignIn:()=>Cloud.signIn(),
   cloudSignOut:()=>Cloud.signOut(),
   cloudImport:()=>{ const local=lsGet(LS_KEY,null); if(!local) return; Store.data.products=local.products; Store.data.settings={...seed().settings,...local.settings}; Store.save(); toast('Imported: '+local.products.length+' items'); },
