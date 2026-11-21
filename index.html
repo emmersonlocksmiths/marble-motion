@@ -455,6 +455,8 @@ const Cloud = {
   async placeOrder(o){ const x=clean(o); delete x.id; await this.db.collection('orders').doc(o.id).set(x); },
   signIn(){ const p=new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({prompt:'select_account'});
     this.auth.signInWithPopup(p).catch(e=>{ if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment') this.auth.signInWithRedirect(p); else if(e.code!=='auth/popup-closed-by-user') toast('Sign-in failed: '+e.code); }); },
+  signInEmail(email,pw){ return this.auth.signInWithEmailAndPassword(email,pw); },
+  resetPassword(email){ return this.auth.sendPasswordResetEmail(email); },
   signOut(){ this.auth.signOut(); }
 };
 
@@ -754,7 +756,15 @@ function viewAdmin(){
   if(CLOUD&&!ui.admin){ const u=Cloud.user;
     return `<div class="panel" style="max-width:420px;margin:40px auto;text-align:center">${logo(48)}<h2 style="margin:8px 0">Admin sign in</h2>
       ${u?`<p class="muted">${esc(u.email)} isn't an admin account for this shop.</p><button class="btn" data-act="cloudSignOut">Sign out</button>`
-        :`<p class="muted">Sign in with the shop's Google account.</p><button class="btn primary" data-act="cloudSignIn" ${Cloud.auth?'':'disabled'}>Sign in with Google</button>`}
+        :`<form data-form="emailLogin" style="text-align:left;display:grid;gap:10px;margin-top:10px">
+            <label class="f">Email<input type="email" name="email" value="${esc(ADMIN_EMAILS[0])}" autocomplete="username"></label>
+            <label class="f">Password<input type="password" name="password" autocomplete="current-password"></label>
+            <button class="btn primary block" ${Cloud.auth?'':'disabled'}>Sign in</button>
+            <div class="small" id="login-msg" style="text-align:center"></div>
+          </form>
+          <div class="row" style="justify-content:center;flex-wrap:wrap;margin-top:6px">
+            <button class="btn sm" data-act="resetPassword">Set or reset my password</button>
+            <button class="btn sm" data-act="cloudSignIn" ${Cloud.auth?'':'disabled'}>Use Google instead</button></div>`}
       ${Cloud.error?`<p class="small" style="color:var(--red)">${esc(Cloud.error)}</p>`:''}</div>`; }
   if(!ui.admin) return `<div class="panel" style="max-width:380px;margin:40px auto;text-align:center">${logo(48)}<h2 style="margin:8px 0">Admin login</h2>
     <form data-form="login"><input type="password" name="pin" placeholder="PIN" inputmode="numeric" style="text-align:center;font-size:20px;letter-spacing:.3em">
@@ -1357,6 +1367,9 @@ const actions = {
     sendEmail(o.customer.email, `Your ${Store.settings.shopName} ${o.paid?'receipt':'invoice'} ${o.number}`, emailInvoiceHTML(o,o.paid), Store.settings.contactEmail||notifyEmail())
       .then(()=>{ toast('Emailed to '+o.customer.email); renderModal(); }).catch(e=>{ toast('Email failed: '+(e.text||e.message||'error')); renderModal(); }); },
   cloudSignIn:()=>Cloud.signIn(),
+  resetPassword:()=>{ const em=(document.querySelector('form[data-form=emailLogin] [name=email]')?.value||ADMIN_EMAILS[0]).trim(), msg=$('#login-msg');
+    if(!Cloud.auth) return; Cloud.resetPassword(em).then(()=>{ msg.style.color='var(--green)'; msg.textContent=`Check ${em} for a link to set your password, then come back and sign in.`; })
+      .catch(e=>{ msg.style.color='var(--red)'; msg.textContent='Couldn\'t send the email ('+e.code+').'; }); },
   cloudSignOut:()=>Cloud.signOut(),
   cloudImport:()=>{ const local=lsGet(LS_KEY,null); if(!local) return; Store.data.products=local.products; Store.data.settings={...seed().settings,...local.settings}; Store.save(); toast('Imported: '+local.products.length+' items'); },
   cloudSeed:()=>{ const sd=seed(); Store.data.products=sd.products; Store.data.settings=sd.settings; Store.save(); toast('Shop set up with the default pieces'); },
@@ -1406,6 +1419,10 @@ document.addEventListener('input',e=>{
 document.addEventListener('submit',e=>{
   const f=e.target, k=f.dataset.form; if(!k) return; e.preventDefault();
   if(k==='checkout') submitCheckout(f);
+  if(k==='emailLogin'){ const d=new FormData(f), msg=$('#login-msg'), btn=f.querySelector('button'); btn.disabled=true; btn.textContent='Signing in…'; msg.textContent='';
+    Cloud.signInEmail(String(d.get('email')).trim(),String(d.get('password'))).catch(e=>{ btn.disabled=false; btn.textContent='Sign in'; msg.style.color='var(--red)';
+      msg.textContent= e.code==='auth/invalid-credential'||e.code==='auth/wrong-password'||e.code==='auth/user-not-found' ? 'Wrong email or password. If you haven\'t set a password yet, tap “Set or reset my password”.'
+        : e.code==='auth/too-many-requests' ? 'Too many tries. Wait a few minutes or reset your password.' : 'Sign-in failed ('+e.code+').'; }); }
   if(k==='login'){ if(new FormData(f).get('pin')===String(Store.settings.adminPin)){ ui.admin=true; ssSet(ADMIN_KEY,'1'); render(); } else toast('Wrong PIN'); }
   if(k==='product'){ syncEditor(); const p=ui.editing; if(!p.name.trim()){toast('Give it a name');return;} delete p._new; Store.upsertProduct(p); ui.editing=null; render(); toast('Saved'); }
   if(k==='settings'){ const d=Object.fromEntries(new FormData(f)); d.gstRegistered=!!d.gstRegistered; d.postEnabled=!!d.postEnabled; d.postageFlat=num(d.postageFlat); d.freePostageOver=num(d.freePostageOver); Store.saveSettings(d); render(); toast('Settings saved'); }
