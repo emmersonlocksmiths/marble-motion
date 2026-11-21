@@ -172,6 +172,12 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   body.printing .invoice{border:0;padding:0}
 }
 #print-root{display:none}
+.chk{border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+.chk.ok{background:var(--ok-bg,#E6F4EC);color:var(--ok,#22794F)}
+.chk.bad{background:#FDECEA;color:#8A1F14;border:1px solid #F3B8B0}
+[data-theme=dark] .chk.bad{background:#3A1C19;color:#F6C3BC;border-color:#6B2C25}
+[data-theme=dark] .chk.ok{background:#173326;color:#9BE0B8}
+.chk ul{margin:6px 0 8px;padding-left:18px}
 .linkbtn{border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit}
 .modal-head{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);margin:-22px -22px 16px;padding:16px 22px;border-bottom:1px solid var(--line);border-radius:20px 20px 0 0}
 @media (max-width:760px){ .modal-head{top:0;margin:-16px -16px 14px;padding:12px 16px calc(12px);border-radius:0} .modal-head h2{font-size:18px;width:100%} }
@@ -256,7 +262,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.51'; // bump with each update
+const APP_VERSION = '0.52'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -366,6 +372,55 @@ function kitRange(k, products=Store.products, c=Store.settings.costs){
 }
 const recommended = (cost,c=Store.settings.costs) => roundPrice(cost/Math.max(0.01,1-num(c.targetMargin)/100));
 const overheadsPerMonth = (c=Store.settings.costs) => (c.overheads||[]).reduce((s,o)=>s+num(o.amount),0);
+const CHECK_SINCE = new Date('2026-11-22T07:00:00+10:00').getTime(); // price-change tracking started
+// re-prices a saved order from the current shop and flags anything that doesn't add up
+function checkOrder(o){
+  const P=Store.products, S=Store.settings, issues=[], r2=n=>Math.round(n*100)/100; let sub=0;
+  const lines=(o.items||[]).map(i=>{
+    const p=P.find(x=>x.id===i.productId), qty=Number(i.qty);
+    if(!Number.isInteger(qty)||qty<1||qty>50) issues.push({bad:true,msg:`${i.name}: odd quantity (${esc(String(i.qty))})`});
+    if(!p){ issues.push({msg:`${esc(i.name)} is no longer in the shop, so it can't be re-priced`}); sub+=num(i.price)*(qty||0); return {i,exp:num(i.price)}; }
+    if(!p.active) issues.push({msg:`${esc(p.name)} is currently hidden from the shop`});
+    let exp=p.price;
+    if(p.type==='kit'){
+      const picks=(i.sel&&i.sel.picks)||{}, mid=i.sel&&i.sel.marbles;
+      exp+=marbleUpgrade(p,mid,P);
+      ['basic','premium'].forEach(t=>{ const need=num(t==='basic'?p.chooseBasic:p.choosePremium);
+        const ids=Object.entries(picks).filter(([id,q])=>q>0&&P.find(x=>x.id===id)?.tier===t);
+        const got=ids.reduce((s,[,q])=>s+Number(q),0);
+        if(got!==need) issues.push({bad:true,msg:`${esc(p.name)}: has ${got} ${t} pieces chosen, should be ${need}`});
+        if(t==='premium'&&ids.some(([,q])=>q>1)) issues.push({bad:true,msg:`${esc(p.name)}: the same premium piece was chosen more than once`}); });
+      if(Object.keys(picks).some(id=>!P.find(x=>x.id===id))) issues.push({msg:`${esc(p.name)}: includes a chosen piece that's no longer in the shop`});
+      if(p.marbleChoice&&!P.find(x=>x.id===mid)) issues.push({msg:`${esc(p.name)}: marble pack not recognised`});
+    }
+    exp=r2(exp);
+    if(Math.abs(num(i.price)-exp)>0.004){
+      const rel=[p,...(p.type==='kit'?marblePacks(P):[])], changed=Math.max(0,...rel.map(x=>num(x.priceChangedAt)));
+      const msg=`${esc(i.name)}: ordered at ${money(i.price)} each, shop price now ${money(exp)}`;
+      if(changed>o.createdAt) issues.push({price:true,msg:msg+' (you changed the price after this order)'});
+      else if(o.createdAt>CHECK_SINCE) issues.push({bad:true,msg:msg+' (price hasn\'t changed since the order)'});
+      else issues.push({price:true,msg});
+    }
+    sub+=exp*(qty||0); return {i,exp};
+  });
+  sub=r2(sub);
+  const ship=o.delivery==='post'?((num(S.freePostageOver)>0&&sub>=num(S.freePostageOver))?0:num(S.postageFlat)):0, total=r2(sub+ship);
+  const lineSum=r2((o.items||[]).reduce((s,i)=>s+num(i.price)*num(i.qty),0));
+  if(Math.abs(lineSum-num(o.subtotal))>0.004||Math.abs(r2(num(o.subtotal)+num(o.shipping))-num(o.total))>0.004)
+    issues.push({bad:true,msg:`The order's total (${money(o.total)}) doesn't add up from its own items (${money(lineSum+num(o.shipping))})`});
+  const ok=!issues.length&&Math.abs(total-num(o.total))<=0.004;
+  return {ok,issues,lines,subtotal:sub,shipping:ship,total,diff:r2(num(o.total)-total),tamper:issues.some(x=>x.bad)};
+}
+function checkBox(o){
+  if(o.demo) return '';
+  const k=checkOrder(o);
+  if(k.ok) return `<div class="chk ok">✓ Total checked against your current shop prices</div>`;
+  const head=Math.abs(k.diff)>0.004?`Customer total ${money(o.total)}, should be ${money(k.total)}`:`Total matches, but something needs a look`;
+  const why=k.tamper?'This order looks like it was changed before it was sent. Check it before invoicing.':k.issues.some(x=>x.price)?'Price changed since order? If you changed a price after this order was placed, you can keep the old price.':'';
+  return `<div class="chk bad"><b>⚠️ ${head}</b>${why?`<div class="small" style="margin-top:4px">${why}</div>`:''}
+    <ul class="small">${k.issues.map(x=>`<li>${x.msg}</li>`).join('')}</ul>
+    ${Math.abs(k.diff)>0.004?`<button class="btn sm primary" data-act="fixOrderTotal" data-id="${o.id}">Fix total to ${money(k.total)}</button>`:''}</div>`;
+}
 function orderCosts(o){
   const goods=o.items.reduce((s,i)=>s+num(i.cost)*i.qty,0);
   return {goods,total:goods+num(o.costPackaging)+num(o.costPostage)+num(o.costFees)};
@@ -515,6 +570,7 @@ const Cloud = {
     d.settings={...def,...(this.pubSettings||{}),...(this.privSettings||{})};
     d.settings.costs={...DEFAULT_COSTS,...(d.settings.costs||{}),includePrinterCosts:true};
     if(!d.settings.palettes) d.settings.palettes=clean(DEFAULT_PALETTES);
+    Store._prices=Object.fromEntries(d.products.map(p=>[p.id,p.price]));
     d.orders=Object.entries(this.orderDocs).map(([id,o])=>({id,...o})).sort((a,b)=>b.createdAt-a.createdAt);
     this.ready=this.loaded.products&&this.loaded.settings;
     if(this.isAdmin&&this.loaded.costs&&this.loaded.privSettings&&this.loaded.orders){ this.fillPrintHours(); this.fillOrderCosts(); }
@@ -569,7 +625,10 @@ const Store = {
       k.presetBasic=[]; if(k.id==='k-standard'){ k.presetBasic=STANDARD_PRESET.map(id=>({partId:id,qty:1})); k.chooseBasic=0;
         k.description='7 basic pieces chosen for you, plus 3 premium pieces of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.'; } });
     this.save(); },
-  save(){ if(CLOUD) Cloud.push(); else lsSet(LS_KEY,this.data); },
+  // remembers when each price was last changed, so the order check can tell a price change from a tampered order
+  stampPrices(){ const now=Date.now(), prev=this._prices; if(prev) this.data.products.forEach(p=>{ if(p.id in prev&&prev[p.id]!==p.price) p.priceChangedAt=now; });
+    this._prices=Object.fromEntries(this.data.products.map(p=>[p.id,p.price])); },
+  save(){ this.stampPrices(); if(CLOUD) Cloud.push(); else lsSet(LS_KEY,this.data); },
   get products(){ return this.data.products; }, get orders(){ return this.data.orders; }, get settings(){ return this.data.settings; },
   product(id){ return this.data.products.find(p=>p.id===id); },
   upsertProduct(p){ const i=this.data.products.findIndex(x=>x.id===p.id); i>=0?this.data.products[i]=p:this.data.products.push(p); this.save(); },
@@ -940,7 +999,7 @@ function adminOrders(){
     <div class="panel" style="padding:6px 10px">${list.length?`<table class="t"><thead><tr><th>Order</th><th class="hide-m">Date</th><th>Customer</th><th class="hide-m">Delivery</th><th>Status</th><th>Paid</th><th class="num">Total</th></tr></thead><tbody>
       ${list.map(o=>`<tr class="click" data-act="openOrder" data-id="${o.id}"><td><b>${esc(o.number)}</b>${o.demo?' <span class="muted small">demo</span>':''}</td><td class="hide-m muted">${fmtDateTime(o.createdAt)}</td>
         <td>${esc(o.customer.name)}</td><td class="hide-m">${o.delivery==='post'?'📮 Post':'🤝 Pickup'}</td><td><span class="chip st-${o.status}">${o.status}</span></td>
-        <td><span class="chip ${o.paid?'paid-yes':'paid-no'}">${o.paid?'Paid':'Unpaid'}</span></td><td class="num"><b>${money(o.total)}</b></td></tr>`).join('')}
+        <td><span class="chip ${o.paid?'paid-yes':'paid-no'}">${o.paid?'Paid':'Unpaid'}</span></td><td class="num"><b>${money(o.total)}</b>${!o.demo&&!checkOrder(o).ok?' <span title="Total needs checking">⚠️</span>':''}</td></tr>`).join('')}
       </tbody></table>`:`<div class="empty">No orders here.</div>`}</div>`;
 }
 function orderModal(o){
@@ -954,6 +1013,7 @@ function orderModal(o){
     <div class="panel" style="box-shadow:none;margin-bottom:12px"><b>${esc(c.name)}</b><br><span class="small">${esc(c.email)} · ${esc(c.phone)}</span><br>
       <span class="small">${o.delivery==='post'?'📮 Post to: '+esc(c.address):'🤝 Pickup'}</span>
       ${o.notes?`<div class="small" style="margin-top:8px;background:var(--bg);padding:8px;border-radius:8px"><b>Customer note:</b> ${esc(o.notes)}</div>`:''}</div>
+    ${checkBox(o)}
     <b>Order</b>
     <table class="t" style="margin-bottom:12px"><tbody>${o.items.map(i=>`<tr><td>${i.qty} ×</td><td><b>${esc(i.name)}</b>${i.type==='kit'?`<div class="muted small">${esc(itemContents(i))}</div>`:''}</td><td>${swatch(i.colour)}${esc(i.colour||'—')}</td><td class="num">${money(i.price*i.qty)}</td></tr>`).join('')}
       <tr><td></td><td class="muted">Delivery</td><td></td><td class="num">${money(o.shipping)}</td></tr><tr><td></td><td><b>Total</b></td><td></td><td class="num"><b>${money(o.total)}</b></td></tr>
@@ -1487,6 +1547,12 @@ const actions = {
   viewInvoice:()=>{ui.invoiceOpen=true;renderModal();},
   closeInvoice:()=>{ui.invoiceOpen=false;renderModal();},
   closeModal:()=>{ui.editing=null;ui.viewOrder=null;ui.invoiceOpen=false;ui.extras=null;render();},
+  fixOrderTotal:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; const k=checkOrder(o), c=Store.settings.costs;
+    confirmBox(`Change this order's total from ${money(o.total)} to ${money(k.total)}? Do this before you send the invoice.`,()=>{
+      const items=o.items.map((i,n)=>({...i,price:k.lines[n].exp}));
+      Store.updateOrder(o.id,{items,subtotal:k.subtotal,shipping:k.shipping,total:k.total,costFees:+(k.total*num(c.paymentFeePct)/100).toFixed(2),
+        adminNotes:((o.adminNotes||'')+`\nTotal corrected from ${money(o.total)} to ${money(k.total)} on ${new Date().toLocaleDateString('en-AU')}`).trim()});
+      renderModal(); render(); toast('Total corrected'); }); },
   deleteOrder:el=>confirmBox('Delete this order? This can\'t be undone.',()=>{Store.deleteOrder(el.dataset.id);ui.viewOrder=null;render();toast('Order deleted');}),
   newProduct:el=>{ const kit=el.dataset.v==='kit';
     ui.editing=kit?{_new:true,id:'k-'+uid(),type:'kit',name:'',price:0,description:'',image:'',active:true,colourChoice:true,chooseBasic:0,choosePremium:3,marbleChoice:true,presetBasic:[],includes:[]}
