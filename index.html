@@ -563,7 +563,9 @@ function viewShop(){
   const kits=Store.products.filter(p=>p.type==='kit'&&p.active), parts=Store.products.filter(p=>p.type==='part'&&p.active);
   let body;
   if(ui.shopTab==='kits') body = kits.length?`<div class="grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
-  else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--accent-soft);border-color:#C9D7F8;color:#24418F"><b>Start with a package.</b> Choose a package first, then you can add extra pieces and marbles. <button class="btn sm primary" data-act="shopTab" data-v="kits" style="margin-left:8px">Choose a package</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
+  else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--accent-soft);border-color:#C9D7F8;color:#24418F;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
+      <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
   return `<div class="banner"><img src="icons/banner.png" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Choose a package</span><span class="step"><b>2</b>Choose 3 premium pieces</span><span class="step"><b>3</b>Pick your colours & send your order</span></div>
@@ -591,7 +593,7 @@ function productCard(p){
       <div class="muted small">${esc(p.description)}</div><div class="spacer"></div>
       ${p.colourChoice?`<select class="colour" aria-label="Colour">${extraColours().map(c=>`<option>${esc(c)}</option>`).join('')}</select>`:''}
       <div class="row"><div class="qty"><button data-act="cardQty" data-d="-1">−</button><input type="number" class="cq" value="1" min="1"><button data-act="cardQty" data-d="1">+</button></div>
-        <button class="btn primary" style="flex:1" data-act="addToCart" ${p.price&&hasPackage()?'':'disabled'}>${!p.price?'Coming soon':hasPackage()?'Add to cart':'Add a package first'}</button></div></div></div>`;
+        <button class="btn primary" style="flex:1" data-act="addToCart" ${p.price?'':'disabled'}>${p.price?'Add to cart':'Coming soon'}</button></div></div></div>`;
 }
 function builderPanel(){
   const b=ui.builder, k=Store.product(b.kitId); if(!k) return '';
