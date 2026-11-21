@@ -2,8 +2,11 @@
 <html lang="en-AU">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Marble Motion</title>
+<script>(function(){ var t='auto'; try{ t=localStorage.getItem('mm_theme')||'auto'; }catch(e){}
+  var dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme', dark?'dark':'light'); })();</script>
 <meta name="description" content="Designed for motion, built for fun. Build-your-own 3D printed marble towers, made on the Sunshine Coast.">
 <link rel="manifest" href="manifest.webmanifest" id="mf">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-shop-32.png" id="fav">
@@ -21,21 +24,46 @@
   --accent:#2F5FD0; --accent-ink:#fff; --accent-soft:#E6EDFC;
   --red:#E4572E; --yellow:#F3B61F; --green:#2E9E6A; --purple:#7B5CD6;
   --radius:16px; --shadow:0 1px 2px rgba(31,36,48,.06),0 4px 14px rgba(31,36,48,.06);
+  --field:#FFFFFF; --hover:#F4EFE6; --tabs:#EFE8DC; --soft:#FBF8F3; --imgbg:#F2ECE2; --header:rgba(251,247,240,.92);
+  --stage:radial-gradient(circle at 50% 35%,#ffffff,#EFE8DC);
+  --note-bg:#FFF4D6; --note-line:#F3DD9B; --note-ink:#7A5600;
+  --info-bg:#EEF2FC; --info-line:#C9D7F8; --info-ink:#24418F;
+  --ok-bg:#E5F5EC; --ok-line:#BFE6CF; --ok-ink:#1E6B45;
+  color-scheme: light;
 }
+[data-theme=dark]{
+  --bg:#11141B; --card:#1A1E28; --ink:#ECEEF3; --muted:#9AA1AF; --line:#2B3140;
+  --accent:#5B8CFF; --accent-ink:#fff; --accent-soft:#1D2A4D;
+  --red:#FF6B4A; --green:#3FC387;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
+  --field:#141821; --hover:#232937; --tabs:#202634; --soft:#1F2430; --imgbg:#232836; --header:rgba(17,20,27,.9);
+  --stage:radial-gradient(circle at 50% 35%,#2A3142,#151922);
+  --note-bg:#2E2614; --note-line:#5A4A1F; --note-ink:#F3D27A;
+  --info-bg:#18223A; --info-line:#2D3E66; --info-ink:#A9C1FF;
+  --ok-bg:#132A20; --ok-line:#22573E; --ok-ink:#7FE0B0;
+  color-scheme: dark;
+}
+[data-theme=dark] .st-new{background:#3A2216;color:#FFB08A}[data-theme=dark] .st-confirmed{background:#1D2A4D;color:#A9C1FF}
+[data-theme=dark] .st-printing{background:#2A2245;color:#C7B6FF}[data-theme=dark] .st-ready{background:#33290F;color:#F3D27A}
+[data-theme=dark] .st-completed,[data-theme=dark] .paid-yes,[data-theme=dark] .save{background:#132A20;color:#7FE0B0}
+[data-theme=dark] .st-cancelled{background:#262A33;color:#9AA1AF}[data-theme=dark] .paid-no{background:#33250F;color:#F0BE7A}
+[data-theme=dark] .btn.primary:hover{background:#4677F0}
+[data-theme=dark] .toast{background:#ECEEF3;color:#11141B}
+.banner img.b-dark{display:none}[data-theme=dark] .banner img.b-dark{display:block}[data-theme=dark] .banner img.b-light{display:none}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--ink);
   font-family:ui-rounded,"SF Pro Rounded","Nunito","Segoe UI",system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.45}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.wrap{max-width:1080px;margin:0 auto;padding:0 18px}
-header.top{position:sticky;top:0;z-index:20;background:rgba(251,247,240,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.wrap{max-width:1180px;margin:0 auto;padding:0 max(18px,env(safe-area-inset-left)) 0 max(18px,env(safe-area-inset-right))}
+header.top{position:sticky;top:0;z-index:20;background:var(--header);padding-top:env(safe-area-inset-top);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
 header.top .wrap{display:flex;align-items:center;gap:12px;height:62px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px;text-decoration:none;color:var(--ink);letter-spacing:-.01em}
 .brand small{display:block;font-weight:600;font-size:11.5px;color:var(--muted);letter-spacing:0}
 .spacer{flex:1}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--line);background:var(--card);
   border-radius:999px;padding:9px 16px;font-weight:700;cursor:pointer;text-decoration:none;color:var(--ink);transition:transform .08s,background .15s}
-.btn:hover{background:#F4EFE6}.btn:active{transform:scale(.97)}
+.btn:hover{background:var(--hover)}.btn:active{transform:scale(.97)}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .btn.primary:hover{background:#2752BA}
 .btn.danger{color:var(--red)}
@@ -50,14 +78,14 @@ main{padding:22px 0 60px}
 .hero h1{font-size:34px;line-height:1.08;margin:0 0 10px;letter-spacing:-.02em}
 .hero p{color:var(--muted);margin:0 0 16px;font-size:16px}
 .steps{display:flex;gap:10px;flex-wrap:wrap}
-.step{display:flex;gap:8px;align-items:center;background:var(--bg);border-radius:999px;padding:6px 12px 6px 6px;font-weight:700;font-size:13px}
+.step{display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 12px 6px 6px;font-weight:700;font-size:13px}
 .step b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:12px}
-.tabs{display:inline-flex;background:#EFE8DC;border-radius:999px;padding:4px;gap:4px;margin-bottom:16px;flex-wrap:wrap}
+.tabs{display:inline-flex;background:var(--tabs);border-radius:999px;padding:4px;gap:4px;margin-bottom:16px;flex-wrap:wrap}
 .tabs button{border:0;background:transparent;padding:8px 16px;border-radius:999px;font-weight:700;cursor:pointer;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
 .tabs button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column}
-.card .img{aspect-ratio:4/3;background:#F2ECE2;display:block;width:100%;object-fit:cover}
+.card .img{aspect-ratio:4/3;background:var(--imgbg);display:block;width:100%;object-fit:cover}
 .card .body{padding:14px;display:flex;flex-direction:column;gap:8px;flex:1}
 .card h3{margin:0;font-size:17px;letter-spacing:-.01em}
 .price{font-weight:800;font-size:18px}
@@ -67,12 +95,12 @@ main{padding:22px 0 60px}
 .includes ul{margin:4px 0 0;padding-left:18px}
 .save{display:inline-block;background:#E5F5EC;color:var(--green);font-weight:800;font-size:12px;padding:2px 8px;border-radius:999px}
 .row{display:flex;gap:8px;align-items:center}
-.qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:#fff}
+.qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--field)}
 .qty button{border:0;background:transparent;width:32px;height:34px;cursor:pointer;font-weight:800;font-size:16px}
 .qty input{width:36px;border:0;text-align:center;font-weight:700;background:transparent;-moz-appearance:textfield}
 .qty input::-webkit-inner-spin-button{display:none}
 select,input[type=text],input[type=email],input[type=tel],input[type=number],input[type=password],textarea{
-  width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:#fff;outline:none}
+  width:100%;border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--field);color:var(--ink);outline:none}
 select:focus,input:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 label.f{display:flex;flex-direction:column;gap:5px;font-weight:700;font-size:13px}
 label.f span.hint{font-weight:500;color:var(--muted)}
@@ -82,10 +110,10 @@ label.f span.hint{font-weight:500;color:var(--muted)}
 .form-grid .full{grid-column:1/-1}
 .line{display:grid;grid-template-columns:56px 1fr auto auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
 .line:last-child{border-bottom:0}
-.thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:#F2ECE2}
+.thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--imgbg)}
 .tot{display:flex;justify-content:space-between;padding:5px 0}
 .tot.big{font-weight:800;font-size:18px;border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
-.radio-card{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;background:#fff}
+.radio-card{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;background:var(--field)}
 .radio-card.on{border-color:var(--accent);background:var(--accent-soft)}
 .radio-card input{margin-top:3px}
 .empty{text-align:center;padding:40px 10px;color:var(--muted)}
@@ -96,7 +124,7 @@ label.f span.hint{font-weight:500;color:var(--muted)}
 table.t{width:100%;border-collapse:collapse}
 table.t th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:8px;border-bottom:1px solid var(--line)}
 table.t td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
-table.t tr.click{cursor:pointer}table.t tr.click:hover td{background:#FBF8F3}
+table.t tr.click{cursor:pointer}table.t tr.click:hover td{background:var(--soft)}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
@@ -109,7 +137,7 @@ table.t tr.click{cursor:pointer}table.t tr.click:hover td{background:#FBF8F3}
 @keyframes pop{from{opacity:0;transform:translate(-50%,10px)}to{opacity:1;transform:translate(-50%,0)}}
 .admin-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .admin-bar h1{margin:0;font-size:24px}
-.demo-note{background:#FFF4D6;border:1px solid #F3DD9B;color:#7A5600;border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+.demo-note{background:var(--note-bg);border:1px solid var(--note-line);color:var(--note-ink);border-radius:12px;padding:10px 14px;font-size:13px;margin-bottom:16px}
 footer{border-top:1px solid var(--line);padding:22px 0;color:var(--muted);font-size:13px}
 footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .bars{display:flex;align-items:flex-end;gap:14px;height:180px;padding:10px 4px 0}
@@ -140,6 +168,47 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   body.printing .invoice{border:0;padding:0}
 }
 #print-root{display:none}
+html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overscroll-behavior-y:none}
+.theme-btn{width:38px;height:38px;padding:0;font-size:17px}
+/* package card: side by side on wider screens */
+.kit-grid{display:grid;gap:18px}
+@media (min-width:820px){ .kit-card{flex-direction:row} .kit-card .img{width:46%;aspect-ratio:auto;min-height:100%;object-fit:cover} .kit-card .body{padding:22px} }
+/* package builder: picks on the left, sticky 3D preview + total on the right */
+.builder-grid{display:block}
+@media (min-width:980px){
+  .builder-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:26px;align-items:start}
+  .b-right{position:sticky;top:84px}
+  .stage{height:460px!important}
+}
+.b-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:14px}
+/* floating cart bar on phones */
+.cart-bar{display:none}
+@media (max-width:760px){
+  body{font-size:15px}
+  select,input[type=text],input[type=email],input[type=tel],input[type=number],input[type=password],textarea{font-size:16px} /* stops iPhone zooming into fields */
+  header.top .wrap{height:56px}
+  .brand{font-size:16px}
+  main{padding:14px 0 90px}
+  .banner{border-radius:16px;margin-bottom:10px}
+  .steps{gap:6px}.steps .step{padding:4px 10px 4px 4px}
+  .tabs{display:flex;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;max-width:100%}
+  .tabs::-webkit-scrollbar{display:none}
+  .tabs button{white-space:nowrap;flex:none}
+  .panel{padding:14px;border-radius:14px}
+  .grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+  .card .body{padding:11px;gap:6px}.card h3{font-size:15px}.price{font-size:16px}
+  .b-footer{position:sticky;bottom:0;margin:0 -14px -14px;padding:12px 14px calc(12px + env(safe-area-inset-bottom));background:var(--card);border-radius:0 0 14px 14px;box-shadow:0 -6px 16px rgba(0,0,0,.08);z-index:5}
+  .b-footer .btn.primary{flex:1 1 100%;order:3;padding:13px 16px;white-space:nowrap}
+  .b-footer .price{margin-left:auto}
+  .stage{height:320px!important}
+  .modal-bg{padding:0;align-items:stretch}
+  .modal{border-radius:0;min-height:100%;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  .admin-bar h1{font-size:20px}
+  .kpis{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:19px}
+  .cart-bar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;background:var(--accent);color:#fff;border-radius:999px;padding:12px 18px;font-weight:800;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-decoration:none}
+}
+@media (min-width:1100px){ .grid{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))} }
 @media (max-width:760px){
   .hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:27px}
   .two{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}
@@ -531,12 +600,19 @@ function go(r){ if(location.hash!=='#'+r) location.hash=r; else render(); window
 function toast(msg){ const r=$('#toast-root'); r.innerHTML=`<div class="toast">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML='',2600); }
 
 /* ---------- shared bits ---------- */
-const logo = (s=34) => `<svg width="${s}" height="${s}" viewBox="0 0 400 400" aria-hidden="true">
-  <rect x="70" y="20" width="34" height="360" rx="17" fill="#1F2430"/><rect x="296" y="20" width="34" height="360" rx="17" fill="#1F2430"/>
+const logo = (s=34) => `<svg width="${s}" height="${s}" viewBox="0 0 400 400" aria-hidden="true" style="color:inherit">
+  <rect x="70" y="20" width="34" height="360" rx="17" fill="currentColor"/><rect x="296" y="20" width="34" height="360" rx="17" fill="currentColor"/>
   <line x1="88" y1="82" x2="312" y2="132" stroke="#2F5FD0" stroke-width="34" stroke-linecap="round"/>
   <line x1="312" y1="190" x2="88" y2="240" stroke="#E4572E" stroke-width="34" stroke-linecap="round"/>
   <line x1="88" y1="298" x2="312" y2="348" stroke="#2E9E6A" stroke-width="34" stroke-linecap="round"/>
   <circle cx="150" cy="52" r="30" fill="#F3B61F"/><circle cx="250" cy="160" r="30" fill="#E4572E"/><circle cx="176" cy="273" r="30" fill="#2F5FD0"/><circle cx="345" cy="40" r="25" fill="#2E9E6A"/></svg>`;
+const THEMES={auto:'🌓',light:'☀️',dark:'🌙'}, THEME_NAMES={auto:'Auto (matches your device)',light:'Light',dark:'Dark'};
+const getTheme=()=>{ try{ return localStorage.getItem('mm_theme')||'auto'; }catch(e){ return 'auto'; } };
+function applyTheme(t){ try{ localStorage.setItem('mm_theme',t); }catch(e){}
+  const dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
+  const m=document.querySelector('meta[name=theme-color]'); if(m&&!/[?&]app=admin/.test(location.search)) m.content=dark?'#11141B':'#FBF7F0'; }
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(getTheme()==='auto'){ applyTheme('auto'); mountTower(); } });
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
 function header(){
@@ -545,8 +621,8 @@ function header(){
     <a class="brand" href="#shop">${logo()}<span>${esc(s.shopName)}<small>${esc(s.tagline)}</small></span></a>
     <div class="spacer"></div>
     ${r==='admin'
-      ? `<a class="btn sm" href="#shop">View shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
-      : `${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
+      ? `<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button><a class="btn sm" href="#shop">View shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
+      : `<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button>${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
          <a class="btn primary" href="#cart">🛒 Cart ${cartCount()?`<span class="pill" style="background:#fff;color:var(--accent)">${cartCount()}</span>`:''}</a>`}
   </div></header>`;
 }
@@ -562,12 +638,12 @@ function viewShop(){
   if(CLOUD&&!Cloud.ready) return `<div class="panel empty">Loading the shop…</div>`;
   const kits=Store.products.filter(p=>p.type==='kit'&&p.active), parts=Store.products.filter(p=>p.type==='part'&&p.active);
   let body;
-  if(ui.shopTab==='kits') body = kits.length?`<div class="grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
-  else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--accent-soft);border-color:#C9D7F8;color:#24418F;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  if(ui.shopTab==='kits') body = kits.length?`<div class="kit-grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
+  else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--info-bg);border-color:var(--info-line);color:var(--info-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
       <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
-  return `<div class="banner"><img src="icons/banner.png" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"></div>
+  return `<div class="banner"><img class="b-light" src="icons/banner.png" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"><img class="b-dark" src="icons/banner-dark.jpg" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Choose a package</span><span class="step"><b>2</b>Choose 3 premium pieces</span><span class="step"><b>3</b>Pick your colours & send your order</span></div>
     <div class="tabs">
       <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Packages <span class="muted small">${kits.length}</span></button>
@@ -581,7 +657,7 @@ function kitCard(k){
     num(k.chooseBasic)&&`<li><b>${k.chooseBasic} basic pieces</b> of your choice</li>`, num(k.choosePremium)&&`<li><b>${k.choosePremium} premium pieces</b> of your choice</li>`,
     ...(k.includes||[]).map(i=>`<li>${i.qty>1?i.qty+' × ':''}${nm(i.partId)}</li>`), k.marbleChoice&&`<li>1 pack of 10 marbles, your colour</li>`].filter(Boolean).join('');
   const on=ui.builder?.kitId===k.id;
-  return `<div class="card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(k)}" alt="${esc(k.name)}"><div class="body">
+  return `<div class="card kit-card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(k)}" alt="${esc(k.name)}"><div class="body">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><h3>${esc(k.name)}</h3><span class="price">${k.price?money(k.price):'<span class="muted small">Price TBC</span>'}</span></div>
     <div class="muted small">${esc(k.description)}</div>
     <div class="includes"><b>What's included</b><ul>${inc}</ul></div><div class="spacer"></div>
@@ -613,32 +689,35 @@ function builderPanel(){
   return `<div class="panel" id="builder" style="margin-top:20px;border:2px solid var(--accent)">
     <div class="row" style="margin-bottom:4px"><h2 style="margin:0">Build your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">✕ Close</button></div>
     <p class="muted small" style="margin-top:0">${esc(k.description)}</p>
+    <div class="builder-grid"><div class="b-left">
     ${fixed.length?`<div class="includes" style="margin-bottom:18px"><b>Already in your package</b>
-      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">${fixed.map(i=>{const p=Store.product(i.partId);return p?`<span class="row" style="gap:6px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px"><img src="${imgOf(p)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover" alt=""><span class="small">${i.qty>1?i.qty+' × ':''}${esc(p.name)}</span></span>`:'';}).join('')}</div></div>`:''}
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">${fixed.map(i=>{const p=Store.product(i.partId);return p?`<span class="row" style="gap:6px;background:var(--field);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px"><img src="${imgOf(p)}" style="width:26px;height:26px;border-radius:50%;object-fit:cover" alt=""><span class="small">${i.qty>1?i.qty+' × ':''}${esc(p.name)}</span></span>`:'';}).join('')}</div></div>`:''}
     ${section('premium',num(k.choosePremium))}${section('basic',num(k.chooseBasic))}
     <div class="form-grid" style="margin-bottom:16px">
       ${k.marbleChoice?`<div><b>Your marbles (10 pack)</b><div style="display:grid;gap:8px;margin-top:8px">${marblePacks(Store.products).map(m=>{const up=marbleUpgrade(k,m.id,Store.products);
         return `<label class="radio-card ${b.marbles===m.id?'on':''}"><input type="radio" name="bm" value="${m.id}" ${b.marbles===m.id?'checked':''} data-chg="bMarble"><div style="flex:1">${esc(m.name)}</div><b>${up?'+'+money(up):'Included'}</b></label>`;}).join('')}</div></div>`:''}
     </div>
+    </div><div class="b-right">
     ${k.colourChoice?colourSection(k,b):''}
-    <div class="row" style="border-top:1px solid var(--line);padding-top:14px;flex-wrap:wrap">
+    <div class="b-footer">
       <div class="qty"><button data-act="bQty" data-d="-1">−</button><input value="${b.qty}" readonly><button data-act="bQty" data-d="1">+</button></div>
       <div class="spacer"></div><span class="price">${money(unit*b.qty)}</span>
       <button class="btn primary" data-act="bAdd" ${complete?'':'disabled'}>${complete?'Add package to cart':left>0?`Choose ${left} more premium piece${left===1?'':'s'}`:k.colourChoice&&!b.palette?'Choose a colour palette':'Finish choosing pieces'}</button></div>
+    </div></div>
   </div>`;
 }
 function colourSection(k,b){
   const pal=b.palette?paletteByName(b.palette):null, pcs=packagePieces(k,b.picks,Store.products);
   const counts={}; pcs.all.forEach(pc=>{ const c=(b.colourMap||{})[pc.key]; if(c) counts[c]=(counts[c]||0)+1; });
   return `<div style="margin:6px 0 18px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Choose your colours</h3></div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:14px">${palettes().map(p=>`<label class="radio-card ${b.palette===p.name?'on':''}" style="flex-direction:column;gap:6px">
+    <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px">${palettes().map(p=>`<label class="radio-card ${b.palette===p.name?'on':''}" style="flex-direction:column;gap:6px">
       <div class="row" style="gap:6px"><input type="radio" name="bpal" value="${esc(p.name)}" ${b.palette===p.name?'checked':''} data-chg="bPalette"><b>${esc(p.name)}</b></div>
       <div class="row" style="gap:4px">${p.colours.map(c=>`<span title="${esc(c.name)}" style="width:22px;height:22px;border-radius:50%;background:${c.hex};border:1px solid rgba(0,0,0,.15);display:inline-block"></span>`).join('')}</div></label>`).join('')}</div>
-    ${pal?`<div style="position:relative;border-radius:16px;overflow:hidden;background:radial-gradient(circle at 50% 35%,#ffffff,#EFE8DC);height:400px;border:1px solid var(--line)">
+    ${pal?`<div class="stage" style="position:relative;border-radius:16px;overflow:hidden;background:var(--stage);height:400px;border:1px solid var(--line)">
         <div id="tower3d" style="width:100%;height:100%"></div>
         <div style="position:absolute;left:12px;top:10px" class="muted small">Drag to spin · illustration only</div>
         <button class="btn primary" data-act="bShuffle" style="position:absolute;left:50%;bottom:14px;transform:translateX(-50%);box-shadow:0 6px 20px rgba(0,0,0,.18)">🎲 Generate colours</button></div>
-      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">${pcs.all.map(pc=>{const c=(b.colourMap||{})[pc.key];return `<span class="small" style="background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 9px">${swatch(c)}${esc(pc.name)}</span>`;}).join('')}</div>
+      <div class="row" style="flex-wrap:wrap;gap:6px;margin-top:10px">${pcs.all.map(pc=>{const c=(b.colourMap||{})[pc.key];return `<span class="small" style="background:var(--field);border:1px solid var(--line);border-radius:999px;padding:3px 9px">${swatch(c)}${esc(pc.name)}</span>`;}).join('')}</div>
       <div class="muted small" style="margin-top:6px">${Object.entries(counts).map(([c,n])=>`${n} × ${esc(c)}`).join(' · ')}</div>`
     :`<div class="muted small">Pick a palette and we'll colour your tower. Not keen on the mix? Hit “Generate colours” for a new one.</div>`}
   </div>`;
@@ -792,10 +871,10 @@ function viewAdmin(){
   const tabs=[['orders','📦 Orders',newCount],['shop','🧩 Shop',0],['costs','💲 Costs & pricing',0],['stats','📈 Stats',0],['settings','⚙️ Settings',0]];
   const body={orders:adminOrders,shop:adminShop,costs:adminCosts,stats:adminStats,settings:adminSettings}[ui.adminTab]();
   return `<div class="admin-bar"><h1>Admin</h1></div>
-    ${CLOUD?`<div class="demo-note" style="background:#E5F5EC;border-color:#BFE6CF;color:#1E6B45">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
+    ${CLOUD?`<div class="demo-note" style="background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok-ink)">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
       :`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
     ${CLOUD&&Cloud.empty?setupPanel():''}
-    ${!/[?&]app=admin/.test(location.search)?`<div class="demo-note" style="background:#EEF2FC;border-color:#C9D7F8;color:#24418F">📱 <b>Admin on your phone:</b> open <b>emmersonlocksmiths.github.io/marble-motion/admin.html</b>, then Share → <b>Add to Home Screen</b>. You'll get the dark “MM Admin” icon.</div>`:''}
+    ${!/[?&]app=admin/.test(location.search)?`<div class="demo-note" style="background:var(--info-bg);border-color:var(--info-line);color:var(--info-ink)">📱 <b>Admin on your phone:</b> open <b>emmersonlocksmiths.github.io/marble-motion/admin.html</b>, then Share → <b>Add to Home Screen</b>. You'll get the dark “MM Admin” icon.</div>`:''}
     <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 }
 
@@ -1049,7 +1128,7 @@ function adminCosts(){
       <span style="white-space:nowrap;margin-left:10px"><span style="display:inline-block;width:3px;height:12px;background:var(--ink);vertical-align:-1px;margin-right:4px"></span>Sale price</span></span></div>
     ${all.map(({p,b})=>{const m=margin(p.price,b.total);return `<div style="display:grid;grid-template-columns:minmax(120px,190px) 1fr 120px;gap:12px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)">
       <div class="small"><b>${esc(p.name)}</b>${p.type==='kit'?' <span class="muted">avg picks</span>':''}</div>
-      <div style="position:relative;height:22px;background:#F4EFE6;border-radius:6px">
+      <div style="position:relative;height:22px;background:var(--hover);border-radius:6px">
         <div style="display:flex;height:100%;width:${b.total/scale*100}%;border-radius:6px;overflow:hidden">${COST_KEYS.map(([k,l,col])=>b[k]>0?`<div title="${l}: ${money(b[k])}" style="width:${b[k]/b.total*100}%;background:${col}"></div>`:'').join('')}</div>
         ${p.price?`<div title="Price ${money(p.price)}" style="position:absolute;top:-3px;bottom:-3px;left:calc(${Math.min(100,p.price/scale*100)}% - 1px);width:3px;background:var(--ink);border-radius:2px"></div>`:''}</div>
       <div class="small num">${p.price?`${money(b.total)} → ${money(p.price)}<br><b style="color:${mcol(m)}">${m}% markup</b>`:`${money(b.total)} cost<br><span class="muted">price not set</span>`}</div></div>`;}).join('')}
@@ -1316,7 +1395,8 @@ const TowerView = (()=>{
 /* ---------- render ---------- */
 function render(){
   const r=route(), views={shop:viewShop,cart:viewCart,checkout:viewCheckout,thanks:viewThanks,admin:viewAdmin};
-  $('#app').innerHTML=header()+`<main><div class="wrap">${views[r]()}</div></main>`+footer(); renderModal(); mountTower();
+  const bar=(r==='shop'&&cartCount()&&!ui.builder)?`<a class="cart-bar" href="#cart">🛒 View cart · ${cartCount()} item${cartCount()===1?'':'s'}<span class="spacer"></span>${money(totals(ui.delivery).subtotal)} →</a>`:'';
+  $('#app').innerHTML=header()+`<main><div class="wrap">${views[r]()}</div></main>`+footer()+bar; renderModal(); mountTower();
 }
 function renderModal(){
   const m=$('#modal-root'), r=route();
@@ -1386,6 +1466,7 @@ const actions = {
   emailCustomer:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; el.disabled=true; el.textContent='Sending…';
     sendEmail(o.customer.email, `Your ${Store.settings.shopName} ${o.paid?'receipt':'invoice'} ${o.number}`, emailInvoiceHTML(o,o.paid), Store.settings.contactEmail||notifyEmail())
       .then(()=>{ toast('Emailed to '+o.customer.email); renderModal(); }).catch(e=>{ toast('Email failed: '+(e.text||e.message||'error')); renderModal(); }); },
+  toggleTheme:()=>{ const order=['auto','light','dark'], next=order[(order.indexOf(getTheme())+1)%3]; applyTheme(next); render(); toast('Theme: '+THEME_NAMES[next]); },
   cloudSignIn:()=>Cloud.signIn(),
   resetPassword:()=>{ const em=(document.querySelector('form[data-form=emailLogin] [name=email]')?.value||ADMIN_EMAILS[0]).trim(), msg=$('#login-msg');
     if(!Cloud.auth) return; Cloud.resetPassword(em).then(()=>{ msg.style.color='var(--green)'; msg.textContent=`Check ${em} for a link to set your password, then come back and sign in.`; })
@@ -1456,6 +1537,9 @@ window.addEventListener('storage',e=>{
 (function(){ const adminApp=/[?&]app=admin/.test(location.search)||(location.hash==='#admin'&&/\bMM Admin\b/.test(document.title));
   if(adminApp){ document.getElementById('mf').href='manifest-admin.webmanifest'; document.getElementById('fav').href='icons/favicon-admin-32.png';
     document.getElementById('ati').href='icons/apple-touch-icon-admin.png'; document.title='MM Admin'; document.querySelector('meta[name=theme-color]').content='#1F2430'; } })();
+['gesturestart','gesturechange','gestureend'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault(),{passive:false}));
+document.addEventListener('touchmove',e=>{ if(e.touches&&e.touches.length>1) e.preventDefault(); },{passive:false});
+let lastTouchEnd=0; document.addEventListener('touchend',e=>{ const now=Date.now(); if(now-lastTouchEnd<300&&!e.target.closest('input,textarea,select')) e.preventDefault(); lastTouchEnd=now; },{passive:false});
 render();
 if(CLOUD) Cloud.start();
 </script>
