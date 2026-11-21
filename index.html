@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Marble Motion</title>
+<meta name="description" content="Designed for motion, built for fun. Build-your-own 3D printed marble towers, made on the Sunshine Coast.">
+<link rel="manifest" href="manifest.webmanifest" id="mf">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-shop-32.png" id="fav">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon-shop.png" id="ati">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Marble Motion">
+<meta name="theme-color" content="#FBF7F0">
+<meta property="og:title" content="Marble Motion">
+<meta property="og:description" content="Designed for motion, built for fun. Build-your-own 3D printed marble towers, made on the Sunshine Coast.">
+<meta property="og:image" content="https://emmersonlocksmiths.github.io/marble-motion/icons/banner.png">
 <style>
 :root{
   --bg:#FBF7F0; --card:#FFFFFF; --ink:#1F2430; --muted:#6B7180; --line:#E8E1D5;
@@ -33,6 +44,8 @@ header.top .wrap{display:flex;align-items:center;gap:12px;height:62px}
 .btn[disabled]{opacity:.45;cursor:not-allowed}
 .pill{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;font-weight:800}
 main{padding:22px 0 60px}
+.banner{margin:0 0 14px;border-radius:24px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#FBF7F0}
+.banner img{display:block;width:100%;height:auto}
 .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
 .hero h1{font-size:34px;line-height:1.08;margin:0 0 10px;letter-spacing:-.02em}
 .hero p{color:var(--muted);margin:0 0 16px;font-size:16px}
@@ -133,6 +146,8 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   .line{grid-template-columns:48px 1fr auto}.line .lt{grid-column:2/-1}
   .invoice{padding:18px}.invoice .cols{grid-template-columns:1fr}
   .hide-m{display:none}
+  .brand small{display:none}
+  .steps .step{font-size:12px}
 }
 </style>
 </head>
@@ -297,12 +312,18 @@ const itemContents = i => i.type!=='kit' ? '' : i.pieceColours ? [...i.pieceColo
   [...(i.picks||[]).map(x=>`${x.qty}× ${x.name}`), ...(i.fixed||[]).map(x=>`${x.qty}× ${x.name}`), i.marbles].filter(Boolean).join(', ');
 
 /* ---------- placeholder product art (until real photos are uploaded) ---------- */
+const open_mark = () => `<rect x='70' y='20' width='34' height='360' rx='17' fill='#1F2430'/><rect x='296' y='20' width='34' height='360' rx='17' fill='#1F2430'/>
+  <line x1='88' y1='82' x2='312' y2='132' stroke='#2F5FD0' stroke-width='30' stroke-linecap='round'/><line x1='312' y1='190' x2='88' y2='240' stroke='#E4572E' stroke-width='30' stroke-linecap='round'/>
+  <line x1='88' y1='298' x2='312' y2='348' stroke='#2E9E6A' stroke-width='30' stroke-linecap='round'/>
+  <circle cx='150' cy='55' r='26' fill='#F3B61F'/><circle cx='250' cy='163' r='26' fill='#E4572E'/><circle cx='176' cy='276' r='26' fill='#2F5FD0'/><circle cx='345' cy='40' r='22' fill='#2E9E6A'/>
+  <circle cx='141' cy='45' r='8' fill='#fff' opacity='.6'/><circle cx='241' cy='153' r='8' fill='#fff' opacity='.6'/><circle cx='167' cy='266' r='8' fill='#fff' opacity='.6'/>`;
 function artFor(p){
   const palette = ['#2F5FD0','#E4572E','#2E9E6A','#7B5CD6','#F3B61F','#F08A24'];
   let h=0; for (const ch of (p.id||p.name||'x')) h=(h*31+ch.charCodeAt(0))>>>0;
   const a = palette[h%6], b = palette[(h>>3)%6===h%6 ? (h+1)%6 : (h>>3)%6];
   let svg;
-  if(p.type==='kit') svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='#F2ECE2'/>
+  if(p.type==='kit'){ const mark=open_mark(); svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 300'><rect width='400' height='300' fill='#F2ECE2'/><g transform='translate(60 10) scale(0.7)'>${mark}</g></svg>`; }
+  else if(false) svg=`<svg><rect width='400' height='300' fill='#F2ECE2'/>
        ${[0,1,2,3].map(i=>`<rect x='70' y='${40+i*55}' width='260' height='14' rx='7' fill='${i%2?b:a}' transform='rotate(${i%2?-6:6} 200 ${47+i*55})'/>`).join('')}
        <rect x='80' y='30' width='16' height='240' rx='6' fill='#1F2430' opacity='.85'/><rect x='304' y='30' width='16' height='240' rx='6' fill='#1F2430' opacity='.85'/>
        <circle cx='150' cy='${32+(h%3)*55}' r='11' fill='${b}'/><circle cx='250' cy='142' r='11' fill='${a}'/><circle cx='190' cy='252' r='11' fill='#F3B61F'/></svg>`;
@@ -366,7 +387,7 @@ function seed(){
   const orders=[]; // no demo orders until retail prices are set
 
   return {products,orders,settings:{
-    shopName:'Marble Motion', tagline:'Build-your-own 3D printed marble towers', notifyEmail:'service@emmersonlocksmiths.com.au',
+    shopName:'Marble Motion', tagline:'Designed for motion, built for fun.', notifyEmail:'service@emmersonlocksmiths.com.au',
     legalName:'Emmerson Locksmiths Pty Ltd', abn:'', gstRegistered:false, contactEmail:'', contactPhone:'',
     bankName:'', bsb:'', accountNo:'', accountName:'', payId:'',
     paymentTerms:'Payment due within 7 days. Please use your order number as the payment reference. Printing starts once payment is received.',
@@ -510,11 +531,12 @@ function go(r){ if(location.hash!=='#'+r) location.hash=r; else render(); window
 function toast(msg){ const r=$('#toast-root'); r.innerHTML=`<div class="toast">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML='',2600); }
 
 /* ---------- shared bits ---------- */
-const logo = (s=34) => `<svg width="${s}" height="${s}" viewBox="0 0 40 40" aria-hidden="true">
-  <rect x="5" y="4" width="4" height="32" rx="2" fill="#1F2430"/><rect x="31" y="4" width="4" height="32" rx="2" fill="#1F2430"/>
-  <rect x="7" y="10" width="26" height="4" rx="2" fill="#2F5FD0" transform="rotate(8 20 12)"/>
-  <rect x="7" y="22" width="26" height="4" rx="2" fill="#E4572E" transform="rotate(-8 20 24)"/>
-  <circle cx="14" cy="8" r="3.4" fill="#F3B61F"/><circle cx="26" cy="20" r="3.4" fill="#2E9E6A"/></svg>`;
+const logo = (s=34) => `<svg width="${s}" height="${s}" viewBox="0 0 400 400" aria-hidden="true">
+  <rect x="70" y="20" width="34" height="360" rx="17" fill="#1F2430"/><rect x="296" y="20" width="34" height="360" rx="17" fill="#1F2430"/>
+  <line x1="88" y1="82" x2="312" y2="132" stroke="#2F5FD0" stroke-width="34" stroke-linecap="round"/>
+  <line x1="312" y1="190" x2="88" y2="240" stroke="#E4572E" stroke-width="34" stroke-linecap="round"/>
+  <line x1="88" y1="298" x2="312" y2="348" stroke="#2E9E6A" stroke-width="34" stroke-linecap="round"/>
+  <circle cx="150" cy="52" r="30" fill="#F3B61F"/><circle cx="250" cy="160" r="30" fill="#E4572E"/><circle cx="176" cy="273" r="30" fill="#2F5FD0"/><circle cx="345" cy="40" r="25" fill="#2E9E6A"/></svg>`;
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
 function header(){
@@ -543,13 +565,8 @@ function viewShop(){
   if(ui.shopTab==='kits') body = kits.length?`<div class="grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
   else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--accent-soft);border-color:#C9D7F8;color:#24418F"><b>Start with a package.</b> Choose a package first, then you can add extra pieces and marbles. <button class="btn sm primary" data-act="shopTab" data-v="kits" style="margin-left:8px">Choose a package</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
-  return `<div class="hero">
-      <div><h1>Build your own<br>marble tower</h1>
-        <p>Pick a package, choose your premium pieces, then add as many extra pieces and marbles as you like. Every piece is 3D printed to order on the Sunshine Coast.</p>
-        <div class="steps"><span class="step"><b>1</b>Choose a package</span><span class="step"><b>2</b>Choose 3 premium pieces</span><span class="step"><b>3</b>Send your order</span></div>
-      </div>
-      <div><img src="${artFor({id:'hero-x',type:'kit'})}" alt="" style="width:100%;border-radius:16px;display:block"></div>
-    </div>
+  return `<div class="banner"><img src="icons/banner.png" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"></div>
+    <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Choose a package</span><span class="step"><b>2</b>Choose 3 premium pieces</span><span class="step"><b>3</b>Pick your colours & send your order</span></div>
     <div class="tabs">
       <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Packages <span class="muted small">${kits.length}</span></button>
       <button class="${ui.shopTab==='parts'?'on':''}" data-act="shopTab" data-v="parts">Extra pieces & marbles <span class="muted small">${parts.length}</span></button>
@@ -776,6 +793,7 @@ function viewAdmin(){
     ${CLOUD?`<div class="demo-note" style="background:#E5F5EC;border-color:#BFE6CF;color:#1E6B45">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
       :`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
     ${CLOUD&&Cloud.empty?setupPanel():''}
+    ${!/[?&]app=admin/.test(location.search)?`<div class="demo-note" style="background:#EEF2FC;border-color:#C9D7F8;color:#24418F">📱 <b>Admin on your phone:</b> open <b>emmersonlocksmiths.github.io/marble-motion/admin.html</b>, then Share → <b>Add to Home Screen</b>. You'll get the dark “MM Admin” icon.</div>`:''}
     <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 }
 
@@ -1433,6 +1451,9 @@ window.addEventListener('storage',e=>{
   if(Store.orders.length>ui.seenOrders&&ui.admin) toast('🔔 New order received!');
   ui.seenOrders=Store.orders.length; render();
 });
+(function(){ const adminApp=/[?&]app=admin/.test(location.search)||(location.hash==='#admin'&&/\bMM Admin\b/.test(document.title));
+  if(adminApp){ document.getElementById('mf').href='manifest-admin.webmanifest'; document.getElementById('fav').href='icons/favicon-admin-32.png';
+    document.getElementById('ati').href='icons/apple-touch-icon-admin.png'; document.title='MM Admin'; document.querySelector('meta[name=theme-color]').content='#1F2430'; } })();
 render();
 if(CLOUD) Cloud.start();
 </script>
