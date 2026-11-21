@@ -172,6 +172,9 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
   body.printing .invoice{border:0;padding:0}
 }
 #print-root{display:none}
+.linkbtn{border:0;background:none;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font:inherit}
+.modal-head{position:sticky;top:0;z-index:6;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--card);margin:-22px -22px 16px;padding:16px 22px;border-bottom:1px solid var(--line);border-radius:20px 20px 0 0}
+@media (max-width:760px){ .modal-head{top:0;margin:-16px -16px 14px;padding:12px 16px calc(12px);border-radius:0} .modal-head h2{font-size:18px;width:100%} }
 html{touch-action:manipulation;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{overscroll-behavior-y:none}
 .theme-btn{width:38px;height:38px;padding:0;font-size:17px}
@@ -206,8 +209,8 @@ body{overscroll-behavior-y:none}
   .b-footer .btn.primary{flex:1 1 100%;order:3;padding:13px 16px;white-space:nowrap}
   .b-footer .price{margin-left:auto}
   .stage{height:320px!important}
-  .modal-bg{padding:0;align-items:stretch}
-  .modal{border-radius:0;min-height:100%;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+  .modal-bg{padding:0;align-items:flex-start}
+  .modal{border-radius:0;min-height:100vh;min-height:100dvh;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
   .admin-bar h1{font-size:20px}
   .kpis{grid-template-columns:repeat(2,1fr)}.kpi .v{font-size:19px}
   .cart-bar{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:30;background:var(--accent);color:#fff;border-radius:999px;padding:12px 18px;font-weight:800;align-items:center;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.25);text-decoration:none}
@@ -253,7 +256,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.50'; // bump with each update
+const APP_VERSION = '0.51'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -461,7 +464,7 @@ function seed(){
   const orders=[]; // no demo orders until retail prices are set
 
   return {products,orders,settings:{
-    shopName:'Marble Motion', tagline:'Designed for motion, built for fun.', notifyEmail:'service@emmersonlocksmiths.com.au',
+    shopName:'Marble Motion', leadTimeNote:"Every order is printed and made to order. Please allow up to 1 week after your payment is received for printing and manufacturing before your order is ready to collect. We'll let you know as soon as it's ready.", tagline:'Designed for motion, built for fun.', notifyEmail:'service@emmersonlocksmiths.com.au',
     legalName:'Emmerson Locksmiths Pty Ltd', abn:'', gstRegistered:false, contactEmail:'', contactPhone:'',
     bankName:'', bsb:'', accountNo:'', accountName:'', payId:'',
     paymentTerms:'Payment due within 7 days. Please use your order number as the payment reference. Printing starts once payment is received.',
@@ -600,7 +603,7 @@ function totals(delivery){
 const ui = { shopTab:'kits', delivery:'pickup', lastOrder:null, builder:null,
   admin:CLOUD?false:(!REQUIRE_PIN||ssGet(ADMIN_KEY)==='1'), adminTab:'orders', orderFilter:'open', orderSearch:'',
   editing:null, viewOrder:null, invoiceOpen:false, seenOrders:Store.orders.length };
-function route(){ const h=(location.hash||'').replace('#',''); return ['shop','cart','checkout','thanks','admin'].includes(h)?h:'shop'; }
+function route(){ const h=(location.hash||'').replace('#',''); return ['shop','cart','checkout','thanks','admin','terms'].includes(h)?h:'shop'; }
 function go(r){ if(location.hash!=='#'+r) location.hash=r; else render(); window.scrollTo(0,0); }
 function toast(msg){ const r=$('#toast-root'); r.innerHTML=`<div class="toast">${esc(msg)}</div>`; clearTimeout(toast.t); toast.t=setTimeout(()=>r.innerHTML='',2600); }
 
@@ -634,7 +637,7 @@ function header(){
 function footer(){
   const s=Store.settings;
   return `<footer><div class="wrap"><span>© ${new Date().getFullYear()} ${esc(s.shopName)} · operated by ${esc(s.legalName)}</span>
-    <div class="spacer"></div><span class="muted small" style="opacity:.75">v${APP_VERSION}</span><a href="#admin" style="color:var(--muted)">Admin</a></div></footer>`;
+    <div class="spacer"></div><a href="#terms" style="color:var(--muted)">Terms &amp; Conditions</a><span class="muted small" style="opacity:.75">v${APP_VERSION}</span><a href="#admin" style="color:var(--muted)">Admin</a></div></footer>`;
 }
 
 /* ---------- SHOP ---------- */
@@ -796,7 +799,10 @@ function viewCheckout(){
     <div class="panel"><b>Summary</b>
       ${lines.map(l=>`<div class="tot small"><span>${l.qty} × ${esc(l.product.name)}${l.colour?` (${esc(l.colour)})`:''}</span><span>${money(linePrice(l)*l.qty)}</span></div>`).join('')}
       <div style="border-top:1px solid var(--line);margin:8px 0"></div>${totalsBlock(t)}
+      <div class="demo-note" style="margin:14px 0 10px"><b>⏳ Made to order: allow 1 week</b><br>${esc(leadNote())}</div>
+      <label class="switch" style="align-items:flex-start;font-weight:600"><input type="checkbox" name="leadOk" style="margin-top:2px"> I understand my order takes up to 1 week to print and make before it's ready.</label>
       <button class="btn primary block" style="margin-top:14px" type="submit">Submit order</button>
+      <p class="small" style="margin:10px 0 0;text-align:center">By placing your order, you agree to our <button type="button" class="linkbtn" data-act="showTerms">Terms &amp; Conditions</button>.</p>
       <p class="muted small" style="margin:10px 0 0">No payment is taken now. You'll get an invoice with payment details, and we start printing once it's paid.</p>
     </div></form>`;
 }
@@ -804,6 +810,7 @@ function submitCheckout(form){
   const f=Object.fromEntries(new FormData(form)), post=ui.delivery==='post', err=[];
   if(!f.name?.trim())err.push('name'); if(!f.phone?.trim())err.push('phone');
   if(!/^\S+@\S+\.\S+$/.test(f.email||''))err.push('a valid email'); if(post&&!f.address?.trim())err.push('postal address');
+  if(!f.leadOk){ $('#ck-err').textContent='Please tick the box to confirm you understand the 1 week lead time.'; return; }
   if(err.length){ $('#ck-err').textContent='Please enter your '+err.join(', ')+'.'; return; }
   const c=Store.settings.costs, t=totals(ui.delivery);
   const btn=form.querySelector('button[type=submit]'); if(btn){ btn.disabled=true; btn.textContent='Sending order…'; }
@@ -824,7 +831,7 @@ function viewThanks(){
       <div style="font-size:44px">🎉</div><h1 style="margin:6px 0">Thanks, ${esc(o.customer.name.split(' ')[0])}!</h1>
       <p class="muted" style="margin:0 0 14px">Order <b>${esc(o.number)}</b> is in. ${o.emailStatus==='sent'?`We've emailed your invoice to <b>${esc(o.customer.email)}</b>.`:o.emailStatus==='sending'?`Emailing your invoice to <b>${esc(o.customer.email)}</b>…`:o.emailStatus==='failed'?`We couldn't email your invoice, so please save or print it below.`:'Please save or print your invoice below.'}</p>
       <div class="row" style="justify-content:center;flex-wrap:wrap"><button class="btn" data-act="printInvoice" data-id="${o.id}">🖨️ Print / save PDF</button><a class="btn primary" href="#shop">Back to shop</a></div>
-    </div>${invoiceHTML(o)}`;
+    </div><div class="demo-note" style="margin-bottom:18px"><b>⏳ What happens next</b><br>${esc(leadNote())}</div>${invoiceHTML(o)}`;
 }
 function invoiceHTML(o){
   const s=Store.settings, gst=s.gstRegistered;
@@ -843,6 +850,7 @@ function invoiceHTML(o){
       ${gst?`<div style="font-size:13px"><span>GST included</span><span>${money(o.total/11)}</span></div>`:''}
       ${o.paid?`<div style="color:#22794F;font-weight:800"><span>PAID</span><span>✓</span></div>`:''}</div>
     ${!gst?`<div style="font-size:12px;color:#777;margin-top:6px">No GST has been charged.</div>`:''}
+    <div style="font-size:12px;color:#777;margin-top:6px">⚠️ Choking hazard: small parts and marbles. Not suitable for children under 3. Sold under our Terms &amp; Conditions.</div>
     ${o.paid?'':`<div class="pay"><b>How to pay</b><div style="font-size:14px;margin-top:6px;line-height:1.7">${bank.length?bank.join('<br>'):'<i style="color:#999">Bank details will appear here once added in Admin → Settings.</i>'}<br>Reference: <b>${esc(o.number)}</b></div>
       <div style="font-size:13px;color:#555;margin-top:8px">${esc(s.paymentTerms)}</div></div>`}
   </div>`;
@@ -883,6 +891,32 @@ function viewAdmin(){
     <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 }
 
+const TERMS_UPDATED='22 November 2026';
+function termsHTML(){
+  const s=Store.settings, who=esc(s.legalName||'Emmerson Locksmiths Pty Ltd'), shop=esc(s.shopName||'Marble Motion');
+  const contact=[s.contactEmail||notifyEmail(), s.contactPhone].filter(Boolean).map(esc).join(' · ');
+  const H=t=>`<h3 style="margin:22px 0 6px">${t}</h3>`;
+  return `<div class="terms" style="line-height:1.65">
+  <h2 style="margin:0 0 4px">Terms &amp; Conditions</h2><div class="muted small">Last updated ${TERMS_UPDATED}</div>
+  <p>These terms apply to every purchase from ${shop}. <b>By placing an order, you agree to these Terms &amp; Conditions.</b> Nothing in these terms limits your rights under the Australian Consumer Law.</p>
+  ${H('1. About us')}<p>${shop} is a trading name of ${who}${s.abn?` (ABN ${esc(s.abn)})`:''}, based on the Sunshine Coast, Queensland. You can contact us at ${contact}.</p>
+  ${H('2. Orders')}<p>When you submit an order, you're making an offer to buy. We'll email you an order confirmation and invoice. We may decline or cancel an order (for example, if a price was shown incorrectly or an item can't be made), and if we do, we'll refund anything you've paid in full.</p>
+  ${H('3. Prices')}<p>All prices are in Australian dollars. ${s.gstRegistered?'Prices include GST.':'We are not currently registered for GST, so no GST is charged.'} The price you pay is the price shown on your invoice.</p>
+  ${H('4. Payment')}<p>Payment is by bank transfer using the details on your invoice, with your order number as the reference. ${esc(s.paymentTerms||'')} If an order isn't paid within 14 days, we may cancel it.</p>
+  ${H('5. Made to order and lead time')}<p>Every piece is 3D printed and made to order once your payment is received. Please allow <b>up to 1 week after payment</b> for printing and manufacturing before your order is ready. Busy periods may take a little longer, and if your order will be delayed we'll let you know.</p>
+  ${H('6. Collection')}<p>Orders are collected locally on the Sunshine Coast. We'll message you when your order is ready to arrange a time. Please collect within 30 days of being notified, or contact us if you need longer.${s.postEnabled?' Where postage is offered, delivery times depend on Australia Post and the risk passes to you once the parcel is delivered.':''}</p>
+  ${H('7. About 3D printed products')}<p>Our products are 3D printed in plastic, so small layer lines, slight surface marks and minor variations between pieces are normal and are not faults. Colours may look different on your screen. The 3D tower preview is an illustration only, and colours within your chosen palette are assigned to pieces as shown when you ordered.</p>
+  ${H('8. Safety')}<p style="background:var(--note-bg);border:1px solid var(--note-line);color:var(--note-ink);border-radius:10px;padding:10px 12px"><b>⚠️ WARNING: CHOKING HAZARD.</b> Contains small parts and small balls (marbles). <b>Not suitable for children under 3 years.</b></p>
+  <p>Adult supervision is recommended for young children. Use the products only as a marble run. Keep them away from heat (for example, a hot car), as the plastic can soften and warp. Check pieces regularly and stop using any piece that is cracked or broken.</p>
+  ${H('9. Your consumer guarantees')}<p>Our goods come with guarantees that cannot be excluded under the Australian Consumer Law. You are entitled to a replacement or refund for a major failure and compensation for any other reasonably foreseeable loss or damage. You are also entitled to have the goods repaired or replaced if the goods fail to be of acceptable quality and the failure does not amount to a major failure.</p>
+  <p>If something is faulty, damaged or not what you ordered, contact us with your order number and a photo, and we'll arrange a repair, replacement or refund as required by law. We'll cover the cost of returning faulty goods.</p>
+  ${H('10. Change of mind and cancellations')}<p>Because every order is made to order, we don't offer refunds if you simply change your mind, choose the wrong item or no longer want it. You can cancel for a full refund before we start printing your order. Once printing has started, we may not be able to cancel. This doesn't affect your rights under the Australian Consumer Law if a product is faulty.</p>
+  ${H('11. Privacy')}<p>We collect your name, email, phone number and (if posted) address only to process and deliver your order and to contact you about it. Your details are stored securely using Google Firebase, and order emails are sent using EmailJS and our business email. We never sell or share your details for marketing. You can ask to see, correct or delete your details by contacting us.</p>
+  ${H('12. Liability')}<p>To the extent permitted by law, we're not liable for indirect or consequential loss. Nothing in these terms excludes, restricts or changes any right or remedy you have under the Australian Consumer Law.</p>
+  ${H('13. Our designs')}<p>Our piece designs, images and website content belong to us. Please don't copy or reproduce our designs for sale.</p>
+  ${H('14. General')}<p>We may update these terms from time to time. The terms in place when you placed your order apply to that order. These terms are governed by the laws of Queensland, Australia.</p>
+  ${H('15. Contact us')}<p>${who}${s.abn?` · ABN ${esc(s.abn)}`:''}<br>${contact}</p></div>`;
+}
 function setupPanel(){
   const local=lsGet(LS_KEY,null);
   return `<div class="panel" style="margin-bottom:16px;border:2px solid var(--accent)"><h3 style="margin-top:0">👋 Your online shop is empty</h3>
@@ -950,6 +984,7 @@ function printList(o){ // everything to print and pack, totalled by piece and co
 }
 
 /* ---------- emails (EmailJS, live site only) ---------- */
+const leadNote = () => Store.settings.leadTimeNote || "Every order is printed and made to order. Please allow up to 1 week after your payment is received for printing and manufacturing before your order is ready to collect. We'll let you know as soon as it's ready.";
 const notifyEmail = () => Store.settings.notifyEmail || 'service@emmersonlocksmiths.com.au';
 async function sendEmail(to, subject, html, replyTo){
   if(!CLOUD) throw new Error('Emails only send from the live site');
@@ -987,8 +1022,10 @@ function emailInvoiceHTML(o, paidReceipt){
     ${paidReceipt||o.paid?'':`<div style="background:#F6F6F6;border-radius:10px;padding:14px;margin-top:18px;font-size:14px;line-height:1.7"><b>How to pay</b><br>
       ${bank.length?bank.join('<br>'):'We\'ll send you our payment details shortly.'}<br>Reference: <b>${esc(o.number)}</b>
       <div style="font-size:13px;color:#555;margin-top:6px">${esc(s.paymentTerms)}</div></div>`}
+    <div style="background:#FFF4D6;border-radius:10px;padding:12px 14px;margin-top:16px;font-size:14px;color:#5C4500"><b>⏳ Made to order</b><br>${esc(leadNote())}</div>
     <p style="font-size:14px;margin-top:18px">${o.delivery==='pickup'?esc(s.pickupNote):'We\'ll post your order to:<br>'+esc(o.customer.address).replace(/\n/g,'<br>')}</p>
-    <p style="font-size:13px;color:#777;margin-top:18px">Questions? Just reply to this email${s.contactPhone?` or call ${esc(s.contactPhone)}`:''}.</p>`);
+    <p style="font-size:12px;color:#777;margin-top:14px">By placing this order you agreed to our <a href="https://emmersonlocksmiths.github.io/marble-motion/#terms" style="color:#2F5FD0">Terms &amp; Conditions</a>. ⚠️ Choking hazard: small parts and marbles. Not suitable for children under 3.</p>
+    <p style="font-size:13px;color:#777;margin-top:10px">Questions? Just reply to this email${s.contactPhone?` or call ${esc(s.contactPhone)}`:''}.</p>`);
 }
 function emailNewOrderHTML(o){
   const {rows,packs}=printListData(o);
@@ -1026,7 +1063,10 @@ function adminShop(){
 function productModal(){
   const p=ui.editing, kit=p.type==='kit', c=Store.settings.costs, cost=costOf(p), parts=Store.products.filter(x=>x.type==='part'&&x.tier!=='marbles');
   return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop><form data-form="product">
-    <div class="row" style="justify-content:space-between;margin-bottom:14px"><h2 style="margin:0">${p._new?'New':'Edit'} ${kit?'package':'item'}</h2><button type="button" class="btn sm" data-act="closeModal">✕</button></div>
+    <div class="modal-head">
+      <h2 style="margin:0">${p._new?'New':'Edit'} ${kit?'package':'item'}</h2><div class="spacer"></div>
+      ${p._new?'':`<button type="button" class="btn danger sm" data-act="deleteProduct">Delete</button>`}
+      <button type="button" class="btn sm" data-act="closeModal">Cancel</button><button class="btn primary sm">Save</button></div>
     <div class="form-grid">
       <div class="full row" style="gap:14px;align-items:center"><img src="${imgOf(p)}" style="width:110px;height:82px;object-fit:cover;border-radius:12px;border:1px solid var(--line)" alt="">
         <div><label class="btn sm" style="cursor:pointer">📷 ${p.image?'Change':'Upload'} photo<input type="file" accept="image/*" data-chg="productImage" hidden></label>
@@ -1056,8 +1096,6 @@ function productModal(){
       ${(p.includes||[]).map((inc,i)=>`<div class="inc-row"><select data-chg="incPart" data-i="${i}">${parts.map(pp=>`<option value="${pp.id}" ${pp.id===inc.partId?'selected':''}>${esc(pp.name)}</option>`).join('')}</select>
         <input type="number" min="1" value="${inc.qty}" data-chg="incQty" data-i="${i}"><button type="button" class="btn sm" data-act="incRemove" data-i="${i}">✕</button></div>`).join('')}
       <button type="button" class="btn sm" data-act="incAdd" ${parts.length?'':'disabled'}>+ Add item</button></div></div>`:''}
-    <div class="row" style="margin-top:20px">${p._new?'':`<button type="button" class="btn danger sm" data-act="deleteProduct">Delete</button>`}<div class="spacer"></div>
-      <button type="button" class="btn" data-act="closeModal">Cancel</button><button class="btn primary">Save</button></div>
   </form></div></div>`;
 }
 function syncEditor(){
@@ -1213,6 +1251,7 @@ function adminSettings(){
       <label class="f full">Payment terms<textarea name="paymentTerms" rows="2">${esc(s.paymentTerms)}</textarea></label></div></div>
     <div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Delivery & colours</h3><div class="form-grid">
       <label class="f full">Pickup note<input type="text" name="pickupNote" value="${esc(s.pickupNote)}"></label>
+      <label class="f full">Lead time note <span class="hint">shown at checkout, on the thank-you page and in the order email</span><textarea name="leadTimeNote" rows="2">${esc(leadNote())}</textarea></label>
       <label class="switch full"><input type="checkbox" name="postEnabled" ${s.postEnabled?'checked':''}> Offer postage (off while sales are local pickup only)</label>
       ${F('postageFlat','Flat postage charge (AUD)','','number')}${F('freePostageOver','Free postage over (AUD)','0 = never','number')}
 </div></div>
@@ -1399,12 +1438,13 @@ const TowerView = (()=>{
 
 /* ---------- render ---------- */
 function render(){
-  const r=route(), views={shop:viewShop,cart:viewCart,checkout:viewCheckout,thanks:viewThanks,admin:viewAdmin};
+  const r=route(), views={shop:viewShop,cart:viewCart,checkout:viewCheckout,thanks:viewThanks,admin:viewAdmin,terms:()=>`<div class="panel" style="max-width:820px;margin:0 auto">${termsHTML()}<p style="margin-top:20px"><a class="btn" href="#shop">← Back to shop</a></p></div>`};
   const bar=(r==='shop'&&cartCount()&&!ui.builder)?`<a class="cart-bar" href="#cart">🛒 View cart · ${cartCount()} item${cartCount()===1?'':'s'}<span class="spacer"></span>${money(totals(ui.delivery).subtotal)} →</a>`:'';
   $('#app').innerHTML=header()+`<main><div class="wrap">${views[r]()}</div></main>`+footer()+bar; renderModal(); mountTower();
 }
 function renderModal(){
   const m=$('#modal-root'), r=route();
+  if(ui.showTerms){ m.innerHTML=`<div class="modal-bg" data-act="closeTerms"><div class="modal" data-stop style="max-width:760px"><div class="modal-head"><b>Terms &amp; Conditions</b><div class="spacer"></div><button class="btn primary sm" data-act="closeTerms">Close</button></div>${termsHTML()}</div></div>`; return; }
   if((r==='shop'||r==='cart')&&ui.extras){ m.innerHTML=extrasModal(); return; }
   if(r==='admin'&&ui.admin&&ui.colEdit){ m.innerHTML=colourEditorModal(); return; }
   if(r==='admin'&&ui.admin&&ui.editing){ m.innerHTML=productModal(); return; }
@@ -1471,6 +1511,8 @@ const actions = {
   emailCustomer:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; el.disabled=true; el.textContent='Sending…';
     sendEmail(o.customer.email, `Your ${Store.settings.shopName} ${o.paid?'receipt':'invoice'} ${o.number}`, emailInvoiceHTML(o,o.paid), Store.settings.contactEmail||notifyEmail())
       .then(()=>{ toast('Emailed to '+o.customer.email); renderModal(); }).catch(e=>{ toast('Email failed: '+(e.text||e.message||'error')); renderModal(); }); },
+  showTerms:()=>{ ui.showTerms=true; renderModal(); },
+  closeTerms:()=>{ ui.showTerms=false; renderModal(); },
   toggleTheme:()=>{ const order=['auto','light','dark'], next=order[(order.indexOf(getTheme())+1)%3]; applyTheme(next); render(); toast('Theme: '+THEME_NAMES[next]); },
   cloudSignIn:()=>Cloud.signIn(),
   resetPassword:()=>{ const em=(document.querySelector('form[data-form=emailLogin] [name=email]')?.value||ADMIN_EMAILS[0]).trim(), msg=$('#login-msg');
