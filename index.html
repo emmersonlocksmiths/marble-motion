@@ -329,23 +329,23 @@ function seed(){
   // swap in real slicer grams any time and costs will follow.
   const G = cost => +(cost/1.05/24*1000).toFixed(2);
   const parts = [
-    P('b-straight','basic','Straight Track Section',G(1.45),0,''),
-    P('b-fork','basic','Fork',G(1.93),0,''),
-    P('b-halfpipe','basic','Half Pipe',G(2.07),0,''),
-    P('b-hills','basic','Hills',G(1.48),0,''),
-    P('b-snake','basic','Snake',G(1.58),0,''),
-    P('b-slalom','basic','Slalom',G(1.66),0,''),
-    P('b-stairs','basic','Stairs',G(1.48),0,''),
-    P('b-wave','basic','The Wave',G(1.77),0,''),
-    P('pr-figure8','premium','Figure Eight',G(5.60),0,''),
-    P('pr-spiral','premium','Down Spiral',G(6.03),0,''),
-    P('pr-plinko','premium','Plinko',G(7.70),0,''),
-    P('pr-drain','premium','The Drain',G(5.89),0,''),
-    P('pr-marbleseum','premium','Marbleseum',G(5.93),0,''),
-    P('c-base','component','Triangle Base Piece',G(0.91),0,''),
-    P('c-tophopper','component','Top Hopper / Funnel',G(1.76),0,''),
-    P('c-endhopper','component','End Hopper',G(1.75),0,''),
-    P('c-connectors','component','Connectors (pack of 9)',G(3.11),0,''),
+    P('b-straight','basic','Straight Track Section',G(1.45),1.5,''),
+    P('b-fork','basic','Fork',G(1.93),2.033,''),
+    P('b-halfpipe','basic','Half Pipe',G(2.07),2.283,''),
+    P('b-hills','basic','Hills',G(1.48),1.533,''),
+    P('b-snake','basic','Snake',G(1.58),1.6,''),
+    P('b-slalom','basic','Slalom',G(1.66),1.7,''),
+    P('b-stairs','basic','Stairs',G(1.48),1.5,''),
+    P('b-wave','basic','The Wave',G(1.77),1.833,''),
+    P('pr-figure8','premium','Figure Eight',G(5.60),6,''),
+    P('pr-spiral','premium','Down Spiral',G(6.03),5.583,''),
+    P('pr-plinko','premium','Plinko',G(7.70),5.933,''),
+    P('pr-drain','premium','The Drain',G(5.89),4.783,''),
+    P('pr-marbleseum','premium','Marbleseum',G(5.93),6,''),
+    P('c-base','component','Triangle Base Piece',G(0.91),0.817,''),
+    P('c-tophopper','component','Top Hopper / Funnel',G(1.76),1.667,''),
+    P('c-endhopper','component','End Hopper',G(1.75),1.783,''),
+    P('c-connectors','component','Connectors (pack of 9)',G(3.11),3.183,''),
     P('m-yellow','marbles','Yellow marbles (10 pack)',0,0,'Ten yellow marbles sized for Marble Motion.',{boughtIn:11.53,price:17.95}),
     P('m-blue','marbles','Blue marbles (10 pack)',0,0,'Ten blue marbles sized for Marble Motion.',{boughtIn:11.53,price:17.95}),
     P('m-red','marbles','Red marbles (10 pack)',0,0,'Ten red marbles sized for Marble Motion.',{boughtIn:18.12,price:24.95}),
@@ -419,8 +419,14 @@ const Cloud = {
     if(!d.settings.palettes) d.settings.palettes=clean(DEFAULT_PALETTES);
     d.orders=Object.entries(this.orderDocs).map(([id,o])=>({id,...o})).sort((a,b)=>b.createdAt-a.createdAt);
     this.ready=this.loaded.products&&this.loaded.settings;
-    if(this.isAdmin&&this.loaded.costs&&this.loaded.privSettings&&this.loaded.orders) this.fillOrderCosts();
+    if(this.isAdmin&&this.loaded.costs&&this.loaded.privSettings&&this.loaded.orders){ this.fillPrintHours(); this.fillOrderCosts(); }
     ui.seenOrders=d.orders.length; render();
+  },
+  fillPrintHours(){ // one-off: add the measured print times to pieces that don't have one yet
+    if(this._hoursDone) return; this._hoursDone=true;
+    const defs=Object.fromEntries(seed().products.map(p=>[p.id,p.printHours]));
+    let n=0; Store.data.products.forEach(p=>{ if(p.type==='part'&&!num(p.printHours)&&num(defs[p.id])){ p.printHours=defs[p.id]; n++; } });
+    if(n){ this.push(); setTimeout(()=>toast(`Print times added to ${n} pieces`),300); }
   },
   fillOrderCosts(){ // customers can't see costs, so work them out when the admin opens the orders
     const c=Store.settings.costs; let changed=false;
