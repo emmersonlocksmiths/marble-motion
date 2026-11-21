@@ -158,6 +158,11 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
    comes next: the Store object is the only thing that changes.
    ============================================================ */
 
+/* ---------- Firebase (used when the app runs on GitHub Pages) ---------- */
+const FB_CONFIG = {apiKey:"AIzaSyCgIGdamYMTldiDZnDyC4mFeCpzaq-4VVw",authDomain:"marble-motion.firebaseapp.com",projectId:"marble-motion",
+  storageBucket:"marble-motion.firebasestorage.app",messagingSenderId:"774795996833",appId:"1:774795996833:web:202546d0e66344984ccae0"};
+const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
+const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -275,7 +280,8 @@ function orderCosts(o){
 function makeLine(p, l, products, c){
   const kit=p.type==='kit', sel=kit?{picks:l.picks||{},marbles:l.marbles}:null;
   const item={productId:p.id,name:p.name,type:p.type,tier:p.tier||'',price:p.price+(kit?marbleUpgrade(p,l.marbles,products):0),
-    cost:+costOf(p,products,c,sel).toFixed(2),qty:l.qty,colour:l.colour||''};
+    cost:CLOUD&&!Cloud.isAdmin?null:+costOf(p,products,c,sel).toFixed(2),qty:l.qty,colour:l.colour||''};
+  if(kit) item.sel={picks:{...(l.picks||{})},marbles:l.marbles||''};
   if(kit){
     item.picks=Object.entries(l.picks||{}).filter(([,q])=>q>0).map(([id,q])=>({name:products.find(x=>x.id===id)?.name||id,qty:q}));
     item.fixed=[...(p.presetBasic||[]),...(p.includes||[])].map(i=>({name:products.find(x=>x.id===i.partId)?.name||'',qty:i.qty}));
@@ -371,22 +377,96 @@ function orderNumber(t=Date.now()){
   const d=new Date(t); return 'MM-'+String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 }
 
-/* ---------- data store (demo: this browser) ---------- */
+/* ---------- cloud sync ---------- */
+const PRIVATE_PRODUCT_KEYS=['grams','printHours','boughtIn'], PRIVATE_SETTING_KEYS=['costs','adminPin'];
+const stable = v => Array.isArray(v)?'['+v.map(stable).join(',')+']' : v&&typeof v==='object' ? '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stable(v[k])).join(',')+'}' : JSON.stringify(v===undefined?null:v);
+const clean = v => JSON.parse(JSON.stringify(v));
+const Cloud = {
+  db:null, auth:null, user:null, isAdmin:false, ready:false, error:'',
+  last:{}, pubProducts:{}, costDocs:{}, pubSettings:null, privSettings:null, orderDocs:{}, knownOrders:new Set(),
+  loaded:{products:false,settings:false,costs:false,privSettings:false,orders:false}, adminUnsub:[], firstOrders:true,
+  loadScript:src=>new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>rej(new Error('load '+src));document.head.appendChild(s);}),
+  async start(){
+    try{
+      const v='10.12.2', base=`https://www.gstatic.com/firebasejs/${v}/`;
+      await this.loadScript(base+'firebase-app-compat.js');
+      await Promise.all([this.loadScript(base+'firebase-auth-compat.js'),this.loadScript(base+'firebase-firestore-compat.js')]);
+      firebase.initializeApp(FB_CONFIG); this.db=firebase.firestore(); this.auth=firebase.auth();
+    }catch(e){ this.error='Could not connect to the shop database. Check your internet connection and refresh.'; render(); return; }
+    this.db.collection('products').onSnapshot(snap=>{ this.pubProducts={}; snap.forEach(d=>{ this.pubProducts[d.id]=d.data(); this.last['products/'+d.id]=stable(d.data()); });
+      this.loaded.products=true; this.merge(); }, e=>this.fail(e));
+    this.db.doc('settings/public').onSnapshot(d=>{ this.pubSettings=d.exists?d.data():null; if(d.exists) this.last['settings/public']=stable(d.data()); this.loaded.settings=true; this.merge(); }, e=>this.fail(e));
+    this.auth.onAuthStateChanged(u=>{ this.user=u; this.isAdmin=!!u&&u.emailVerified!==false&&ADMIN_EMAILS.includes((u.email||'').toLowerCase()); ui.admin=this.isAdmin;
+      this.adminUnsub.forEach(f=>f()); this.adminUnsub=[]; if(this.isAdmin) this.subscribeAdmin(); render(); });
+  },
+  subscribeAdmin(){
+    this.firstOrders=true;
+    this.adminUnsub.push(this.db.collection('productCosts').onSnapshot(snap=>{ this.costDocs={}; snap.forEach(d=>{ this.costDocs[d.id]=d.data(); this.last['productCosts/'+d.id]=stable(d.data()); }); this.loaded.costs=true; this.merge(); }, e=>this.fail(e)));
+    this.adminUnsub.push(this.db.doc('settings/private').onSnapshot(d=>{ this.privSettings=d.exists?d.data():null; if(d.exists) this.last['settings/private']=stable(d.data()); this.loaded.privSettings=true; this.merge(); }, e=>this.fail(e)));
+    this.adminUnsub.push(this.db.collection('orders').onSnapshot(snap=>{
+      if(!this.firstOrders && snap.docChanges().some(c=>c.type==='added'&&!this.knownOrders.has(c.doc.id))) toast('🔔 New order received!');
+      this.orderDocs={}; snap.forEach(d=>{ this.orderDocs[d.id]=d.data(); this.last['orders/'+d.id]=stable(d.data()); this.knownOrders.add(d.id); });
+      this.firstOrders=false; this.loaded.orders=true; this.merge(); }, e=>this.fail(e)));
+  },
+  fail(e){ console.error(e); this.error=e.code==='permission-denied'?'You don\'t have permission to see that. Sign in with the admin Google account.':'Connection problem: '+(e.message||e.code); render(); },
+  merge(){
+    const d=Store.data, def=seed().settings;
+    d.products=Object.entries(this.pubProducts).map(([id,p])=>({id,...p,...(this.costDocs[id]||{})})).sort((a,b)=>num(a.sort)-num(b.sort));
+    d.settings={...def,...(this.pubSettings||{}),...(this.privSettings||{})};
+    d.settings.costs={...DEFAULT_COSTS,...(d.settings.costs||{}),includePrinterCosts:true};
+    if(!d.settings.palettes) d.settings.palettes=clean(DEFAULT_PALETTES);
+    d.orders=Object.entries(this.orderDocs).map(([id,o])=>({id,...o})).sort((a,b)=>b.createdAt-a.createdAt);
+    this.ready=this.loaded.products&&this.loaded.settings;
+    if(this.isAdmin&&this.loaded.costs&&this.loaded.privSettings&&this.loaded.orders) this.fillOrderCosts();
+    ui.seenOrders=d.orders.length; render();
+  },
+  fillOrderCosts(){ // customers can't see costs, so work them out when the admin opens the orders
+    const c=Store.settings.costs; let changed=false;
+    Store.data.orders.forEach(o=>{
+      o.items.forEach(i=>{ if(i.cost==null){ const p=Store.product(i.productId); i.cost=p?+costOf(p,Store.products,c,i.sel||undefined).toFixed(2):0; changed=true; } });
+      if(o.costPackaging==null){ o.costPackaging=num(c.packagingPerOrder); o.costPostage=o.delivery==='post'?num(c.postageActual):0; o.costFees=+(o.total*num(c.paymentFeePct)/100).toFixed(2); changed=true; }
+    });
+    if(changed) this.push();
+  },
+  get empty(){ return this.ready&&!Object.keys(this.pubProducts).length&&!this.pubSettings; },
+  put(path,data){ const j=stable(data); if(this.last[path]===j) return; this.last[path]=j;
+    this.db.doc(path).set(clean(data)).catch(e=>{ delete this.last[path]; toast('⚠️ Not saved: '+(e.code||e.message)); }); },
+  del(path){ delete this.last[path]; this.db.doc(path).delete().catch(e=>toast('⚠️ Not deleted: '+(e.code||e.message))); },
+  push(){
+    if(!this.db||!this.isAdmin) return;
+    const d=Store.data, ids=new Set(d.products.map(p=>p.id));
+    d.products.forEach((p,i)=>{ const pub={...p,sort:i}, priv={}; delete pub.id; PRIVATE_PRODUCT_KEYS.forEach(k=>{ priv[k]=num(p[k]); delete pub[k]; });
+      this.put('products/'+p.id,pub); this.put('productCosts/'+p.id,priv); });
+    Object.keys(this.pubProducts).forEach(id=>{ if(!ids.has(id)){ this.del('products/'+id); this.del('productCosts/'+id); delete this.pubProducts[id]; } });
+    const pub={}, priv={}; Object.entries(d.settings).forEach(([k,v])=>{ (PRIVATE_SETTING_KEYS.includes(k)?priv:pub)[k]=v; });
+    this.put('settings/public',pub); this.put('settings/private',priv);
+    const oids=new Set(d.orders.map(o=>o.id));
+    d.orders.forEach(o=>{ const x={...o}; delete x.id; this.put('orders/'+o.id,x); });
+    Object.keys(this.orderDocs).forEach(id=>{ if(!oids.has(id)){ this.del('orders/'+id); delete this.orderDocs[id]; } });
+  },
+  async placeOrder(o){ const x=clean(o); delete x.id; await this.db.collection('orders').doc(o.id).set(x); },
+  signIn(){ const p=new firebase.auth.GoogleAuthProvider(); p.setCustomParameters({prompt:'select_account'});
+    this.auth.signInWithPopup(p).catch(e=>{ if(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment') this.auth.signInWithRedirect(p); else if(e.code!=='auth/popup-closed-by-user') toast('Sign-in failed: '+e.code); }); },
+  signOut(){ this.auth.signOut(); }
+};
+
+/* ---------- data store (demo: this browser · live: Firebase) ---------- */
 const Store = {
   data:null,
-  load(){ this.data=lsGet(LS_KEY,null)||seed(); this.data.settings.costs={...DEFAULT_COSTS,...(this.data.settings.costs||{})};
+  load(){ if(CLOUD){ const sd=seed(); this.data={products:[],orders:[],settings:sd.settings}; return; }
+    this.data=lsGet(LS_KEY,null)||seed(); this.data.settings.costs={...DEFAULT_COSTS,...(this.data.settings.costs||{})};
     this.data.settings.costs.includePrinterCosts=true;
     if(!this.data.settings.palettes) this.data.settings.palettes=JSON.parse(JSON.stringify(DEFAULT_PALETTES));
     this.data.products.forEach(k=>{ if(k.type!=='kit'||k.presetBasic) return;
       k.presetBasic=[]; if(k.id==='k-standard'){ k.presetBasic=STANDARD_PRESET.map(id=>({partId:id,qty:1})); k.chooseBasic=0;
         k.description='7 basic pieces chosen for you, plus 3 premium pieces of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.'; } });
     this.save(); },
-  save(){ lsSet(LS_KEY,this.data); },
+  save(){ if(CLOUD) Cloud.push(); else lsSet(LS_KEY,this.data); },
   get products(){ return this.data.products; }, get orders(){ return this.data.orders; }, get settings(){ return this.data.settings; },
   product(id){ return this.data.products.find(p=>p.id===id); },
   upsertProduct(p){ const i=this.data.products.findIndex(x=>x.id===p.id); i>=0?this.data.products[i]=p:this.data.products.push(p); this.save(); },
   deleteProduct(id){ this.data.products=this.data.products.filter(p=>p.id!==id); this.data.products.forEach(k=>{ if(k.includes) k.includes=k.includes.filter(i=>i.partId!==id); }); this.save(); },
-  addOrder(o){ this.data.orders.unshift(o); this.save(); return o; },
+  addOrder(o){ if(CLOUD&&!Cloud.isAdmin) return Cloud.placeOrder(o).then(()=>o); this.data.orders.unshift(o); this.save(); return Promise.resolve(o); },
   updateOrder(id,patch){ const o=this.data.orders.find(x=>x.id===id); if(o){Object.assign(o,patch); this.save();} },
   deleteOrder(id){ this.data.orders=this.data.orders.filter(o=>o.id!==id); this.save(); },
   saveSettings(s){ this.data.settings={...this.data.settings,...s}; this.save(); },
@@ -413,7 +493,7 @@ function totals(delivery){
 
 /* ---------- UI state ---------- */
 const ui = { shopTab:'kits', delivery:'pickup', lastOrder:null, builder:null,
-  admin:!REQUIRE_PIN||ssGet(ADMIN_KEY)==='1', adminTab:'orders', orderFilter:'open', orderSearch:'',
+  admin:CLOUD?false:(!REQUIRE_PIN||ssGet(ADMIN_KEY)==='1'), adminTab:'orders', orderFilter:'open', orderSearch:'',
   editing:null, viewOrder:null, invoiceOpen:false, seenOrders:Store.orders.length };
 function route(){ const h=(location.hash||'').replace('#',''); return ['shop','cart','checkout','thanks','admin'].includes(h)?h:'shop'; }
 function go(r){ if(location.hash!=='#'+r) location.hash=r; else render(); window.scrollTo(0,0); }
@@ -433,7 +513,7 @@ function header(){
     <a class="brand" href="#shop">${logo()}<span>${esc(s.shopName)}<small>${esc(s.tagline)}</small></span></a>
     <div class="spacer"></div>
     ${r==='admin'
-      ? `<a class="btn sm" href="#shop">View shop</a>${ui.admin&&REQUIRE_PIN?`<button class="btn sm" data-act="logout">Log out</button>`:''}`
+      ? `<a class="btn sm" href="#shop">View shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
       : `${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
          <a class="btn primary" href="#cart">🛒 Cart ${cartCount()?`<span class="pill" style="background:#fff;color:var(--accent)">${cartCount()}</span>`:''}</a>`}
   </div></header>`;
@@ -446,6 +526,8 @@ function footer(){
 
 /* ---------- SHOP ---------- */
 function viewShop(){
+  if(CLOUD&&Cloud.error&&!Cloud.ready) return `<div class="panel empty">${esc(Cloud.error)}</div>`;
+  if(CLOUD&&!Cloud.ready) return `<div class="panel empty">Loading the shop…</div>`;
   const kits=Store.products.filter(p=>p.type==='kit'&&p.active), parts=Store.products.filter(p=>p.type==='part'&&p.active);
   let body;
   if(ui.shopTab==='kits') body = kits.length?`<div class="grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
@@ -611,12 +693,15 @@ function submitCheckout(form){
   if(!/^\S+@\S+\.\S+$/.test(f.email||''))err.push('a valid email'); if(post&&!f.address?.trim())err.push('postal address');
   if(err.length){ $('#ck-err').textContent='Please enter your '+err.join(', ')+'.'; return; }
   const c=Store.settings.costs, t=totals(ui.delivery);
-  const order=Store.addOrder({ id:uid(), number:orderNumber(), createdAt:Date.now(),
+  const btn=form.querySelector('button[type=submit]'); if(btn){ btn.disabled=true; btn.textContent='Sending order…'; }
+  const cloudCust=CLOUD&&!Cloud.isAdmin;
+  Store.addOrder({ id:uid(), number:orderNumber(), createdAt:Date.now(),
     customer:{name:f.name.trim(),email:f.email.trim(),phone:f.phone.trim(),address:post?f.address.trim():''}, delivery:ui.delivery,
     items:cartLines().map(l=>makeLine(l.product,l,Store.products,c)),
     subtotal:t.subtotal, shipping:t.shipping, total:t.total, status:'new', paid:false, notes:(f.notes||'').trim(), adminNotes:'',
-    costPackaging:num(c.packagingPerOrder), costPostage:post?num(c.postageActual):0, costFees:+(t.total*num(c.paymentFeePct)/100).toFixed(2) });
-  ui.seenOrders=Store.orders.length; cart=[]; saveCart(); ui.lastOrder=order; go('thanks');
+    costPackaging:cloudCust?null:num(c.packagingPerOrder), costPostage:cloudCust?null:(post?num(c.postageActual):0), costFees:cloudCust?null:+(t.total*num(c.paymentFeePct)/100).toFixed(2) })
+  .then(order=>{ ui.seenOrders=Store.orders.length; cart=[]; saveCart(); ui.lastOrder=order; go('thanks'); })
+  .catch(e=>{ console.error(e); if(btn){ btn.disabled=false; btn.textContent='Submit order'; } $('#ck-err').textContent='Sorry, your order didn\'t go through ('+(e.code||'connection problem')+'). Please try again.'; });
 }
 
 /* ---------- THANKS + INVOICE ---------- */
@@ -658,6 +743,11 @@ function printInvoice(id){
 
 /* ---------- ADMIN ---------- */
 function viewAdmin(){
+  if(CLOUD&&!ui.admin){ const u=Cloud.user;
+    return `<div class="panel" style="max-width:420px;margin:40px auto;text-align:center">${logo(48)}<h2 style="margin:8px 0">Admin sign in</h2>
+      ${u?`<p class="muted">${esc(u.email)} isn't an admin account for this shop.</p><button class="btn" data-act="cloudSignOut">Sign out</button>`
+        :`<p class="muted">Sign in with the shop's Google account.</p><button class="btn primary" data-act="cloudSignIn" ${Cloud.auth?'':'disabled'}>Sign in with Google</button>`}
+      ${Cloud.error?`<p class="small" style="color:var(--red)">${esc(Cloud.error)}</p>`:''}</div>`; }
   if(!ui.admin) return `<div class="panel" style="max-width:380px;margin:40px auto;text-align:center">${logo(48)}<h2 style="margin:8px 0">Admin login</h2>
     <form data-form="login"><input type="password" name="pin" placeholder="PIN" inputmode="numeric" style="text-align:center;font-size:20px;letter-spacing:.3em">
     <button class="btn primary block" style="margin-top:10px">Log in</button></form></div>`;
@@ -665,10 +755,20 @@ function viewAdmin(){
   const tabs=[['orders','📦 Orders',newCount],['shop','🧩 Shop',0],['costs','💲 Costs & pricing',0],['stats','📈 Stats',0],['settings','⚙️ Settings',0]];
   const body={orders:adminOrders,shop:adminShop,costs:adminCosts,stats:adminStats,settings:adminSettings}[ui.adminTab]();
   return `<div class="admin-bar"><h1>Admin</h1></div>
-    <div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Prototype mode:</b> orders and products save in this browser only. Once you're happy with it, I'll connect it to Firebase so orders come through from customers' phones and you get notified.</div>
+    ${CLOUD?`<div class="demo-note" style="background:#E5F5EC;border-color:#BFE6CF;color:#1E6B45">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
+      :`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
+    ${CLOUD&&Cloud.empty?setupPanel():''}
     <div class="tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}`;
 }
 
+function setupPanel(){
+  const local=lsGet(LS_KEY,null);
+  return `<div class="panel" style="margin-bottom:16px;border:2px solid var(--accent)"><h3 style="margin-top:0">👋 Your online shop is empty</h3>
+    <p class="muted small">Load your pieces, prices and settings into Firebase to get started.</p>
+    <div class="row" style="flex-wrap:wrap">${local?`<button class="btn primary" data-act="cloudImport">Import from this browser</button>`:''}
+      <button class="btn ${local?'':'primary'}" data-act="cloudSeed">Start with the default pieces</button></div>
+    ${local?`<p class="muted small" style="margin-bottom:0">“Import from this browser” copies the products, prices and settings you entered on this device. Test orders aren't copied.</p>`:''}</div>`;
+}
 function adminOrders(){
   const filters=[['open','Open'],['new','New'],['unpaid','Unpaid'],['completed','Completed'],['all','All']], q=ui.orderSearch.toLowerCase();
   const list=Store.orders.filter(o=>{
@@ -926,7 +1026,7 @@ function adminSettings(){
       <label class="switch full"><input type="checkbox" name="postEnabled" ${s.postEnabled?'checked':''}> Offer postage (off while sales are local pickup only)</label>
       ${F('postageFlat','Flat postage charge (AUD)','','number')}${F('freePostageOver','Free postage over (AUD)','0 = never','number')}
 </div></div>
-    <div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Admin</h3><div class="form-grid">${F('adminPin','Admin PIN',REQUIRE_PIN?'':'currently switched off','password')}</div></div>
+    ${CLOUD?'':`<div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Admin</h3><div class="form-grid">${F('adminPin','Admin PIN',REQUIRE_PIN?'':'currently switched off','password')}</div></div>`}
     <div class="row" style="flex-wrap:wrap"><button class="btn primary">Save settings</button><div class="spacer"></div>
       ${demo?`<button type="button" class="btn sm" data-act="clearDemo">Remove ${demo} demo orders</button>`:''}
       <button type="button" class="btn sm danger" data-act="resetAll">Reset everything</button></div></form>`;
@@ -1149,7 +1249,7 @@ const actions = {
   lineQty:el=>{const c=findCart(el.dataset.k); if(c){c.qty=Math.max(1,c.qty+Number(el.dataset.d)); saveCart(); render();}},
   removeLine:el=>{cart=cart.filter(x=>x.key!==el.dataset.k); saveCart(); render();},
   printInvoice:el=>printInvoice(el.dataset.id),
-  logout:()=>{ui.admin=false;ssSet(ADMIN_KEY,null);render();},
+  logout:()=>{ if(CLOUD){ Cloud.signOut(); return; } ui.admin=false;ssSet(ADMIN_KEY,null);render();},
   adminTab:el=>{ui.adminTab=el.dataset.v;render();},
   orderFilter:el=>{ui.orderFilter=el.dataset.v;render();},
   openOrder:el=>{ui.viewOrder=el.dataset.id;ui.invoiceOpen=false;renderModal();},
@@ -1177,6 +1277,10 @@ const actions = {
   colSave:()=>{ const e=ui.colEdit, name=(document.getElementById('ce-name').value||'').trim(); if(!name){ toast('Give the colour a name'); return; }
     const c={name,hex:hsvToHex(e)}, list=Store.settings.palettes[e.i].colours; e.j>=0?list[e.j]=c:list.push(c); Store.save(); ui.colEdit=null; render(); toast('Colour saved'); },
   colDelete:()=>{ const e=ui.colEdit; confirmBox('Delete this colour from the palette?',()=>{ Store.settings.palettes[e.i].colours.splice(e.j,1); Store.save(); ui.colEdit=null; render(); toast('Colour deleted'); }); },
+  cloudSignIn:()=>Cloud.signIn(),
+  cloudSignOut:()=>Cloud.signOut(),
+  cloudImport:()=>{ const local=lsGet(LS_KEY,null); if(!local) return; Store.data.products=local.products; Store.data.settings={...seed().settings,...local.settings}; Store.save(); toast('Imported: '+local.products.length+' items'); },
+  cloudSeed:()=>{ const sd=seed(); Store.data.products=sd.products; Store.data.settings=sd.settings; Store.save(); toast('Shop set up with the default pieces'); },
   ohAdd:()=>{Store.settings.costs.overheads.push({name:'',amount:0});Store.save();render();},
   ohRemove:el=>{Store.settings.costs.overheads.splice(el.dataset.i,1);Store.save();render();},
   clearDemo:()=>confirmBox('Remove all demo orders?',()=>{Store.clearDemoOrders();render();toast('Demo orders removed');}),
@@ -1229,11 +1333,12 @@ document.addEventListener('submit',e=>{
 });
 window.addEventListener('hashchange',()=>{ui.editing=null;ui.viewOrder=null;ui.builder=null;ui.extras=null;render();window.scrollTo(0,0);});
 window.addEventListener('storage',e=>{
-  if(e.key!==LS_KEY) return; Store.load();
+  if(CLOUD||e.key!==LS_KEY) return; Store.load();
   if(Store.orders.length>ui.seenOrders&&ui.admin) toast('🔔 New order received!');
   ui.seenOrders=Store.orders.length; render();
 });
 render();
+if(CLOUD) Cloud.start();
 </script>
 </body>
 </html>
