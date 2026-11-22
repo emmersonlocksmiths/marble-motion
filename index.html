@@ -19,7 +19,7 @@
 <meta name="theme-color" content="#FBF7F0">
 <meta property="og:title" content="Marble Motion">
 <meta property="og:description" content="Designed for motion, built for fun. Build-your-own 3D printed marble towers, made on the Sunshine Coast.">
-<meta property="og:image" content="https://emmersonlocksmiths.github.io/marble-motion/icons/banner.png">
+<meta property="og:image" content="https://emmersonlocksmiths.github.io/marble-motion/icons/banner.jpg">
 <style>
 :root{
   --bg:#FBF7F0; --card:#FFFFFF; --ink:#1F2430; --muted:#6B7180; --line:#E8E1D5;
@@ -77,7 +77,9 @@ header.top .wrap{display:flex;align-items:center;gap:12px;height:62px}
 .pill{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;font-weight:800}
 main{padding:22px 0 60px}
 .banner{margin:0 0 14px;border-radius:24px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#FBF7F0}
-.banner img{display:block;width:100%;height:auto}
+.banner img{display:block;width:100%;height:auto;max-height:330px;object-fit:contain;margin:0 auto}
+[data-theme=dark] .banner{background:#021A44}
+.banner img.b-dark{height:clamp(210px,30vw,330px);max-height:none;object-fit:cover}
 .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
 .hero h1{font-size:34px;line-height:1.08;margin:0 0 10px;letter-spacing:-.02em}
 .hero p{color:var(--muted);margin:0 0 16px;font-size:16px}
@@ -262,7 +264,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.53'; // bump with each update
+const APP_VERSION = '0.54'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -710,7 +712,7 @@ function viewShop(){
       <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
       <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
-  return `<div class="banner"><img class="b-light" src="icons/banner.png" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"><img class="b-dark" src="icons/banner-dark.jpg" alt="Marble Motion: designed for motion, built for fun." width="1600" height="520"></div>
+  return `<div class="banner"><img class="b-light" src="icons/banner.jpg?v=2" alt="Marble Motion: designed for motion, built for fun." width="1800" height="697"><img class="b-dark" src="icons/banner-dark.jpg?v=4" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Build your tower</span><span class="step"><b>2</b>Send your order</span><span class="step"><b>3</b>Enjoy your Marble Motion</span></div>
     <div class="tabs">
       <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Packages <span class="muted small">${kits.length}</span></button>
