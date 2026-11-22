@@ -316,7 +316,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.63'; // bump with each update
+const APP_VERSION = '0.64'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1110,8 +1110,7 @@ function viewAdmin(){
   const tabs=[['orders','📦 Orders',newCount,'📦','Orders'],['shop','🧩 Shop',0,'🧩','Shop'],['costs','💲 Costs & pricing',0,'💲','Costs'],['stats','📈 Stats',0,'📈','Stats'],['settings','⚙️ Settings',0,'⚙️','Settings']];
   const body={orders:adminOrders,shop:adminShop,costs:adminCosts,stats:adminStats,settings:adminSettings}[ui.adminTab]();
   return `<div class="admin-bar"><h1>Admin</h1><span class="chip" style="background:var(--tabs);color:var(--muted);text-transform:none">v${APP_VERSION}</span></div>
-    ${CLOUD?`<div class="demo-note" style="background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok-ink)">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
-      :`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
+    ${CLOUD?'':`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
     ${CLOUD&&Cloud.empty?setupPanel():''}
     <div class="tabs admin-tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}
     <nav class="admin-nav">${tabs.map(([k,l,n,ic,sh])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}"><span class="ic">${ic}</span>${sh}${n?`<span class="pill">${n}</span>`:''}</button>`).join('')}</nav>`;
