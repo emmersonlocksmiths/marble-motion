@@ -998,7 +998,6 @@ function viewAdmin(){
     ${CLOUD?`<div class="demo-note" style="background:var(--ok-bg);border-color:var(--ok-line);color:var(--ok-ink)">✅ <b>Live</b>: saving to Firebase · signed in as ${esc(Cloud.user?.email||'')}</div>`
       :`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
     ${CLOUD&&Cloud.empty?setupPanel():''}
-    ${!/[?&]app=admin/.test(location.search)?`<div class="demo-note" style="background:var(--info-bg);border-color:var(--info-line);color:var(--info-ink)">📱 <b>Admin on your phone:</b> open <b>emmersonlocksmiths.github.io/marble-motion/admin.html</b>, then Share → <b>Add to Home Screen</b>. You'll get the dark “MM Admin” icon.</div>`:''}
     <div class="tabs admin-tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}
     <nav class="admin-nav">${tabs.map(([k,l,n,ic,sh])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}"><span class="ic">${ic}</span>${sh}${n?`<span class="pill">${n}</span>`:''}</button>`).join('')}</nav>`;
 }
