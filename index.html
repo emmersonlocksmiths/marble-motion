@@ -100,6 +100,11 @@ main{padding:22px 0 60px}
 .includes ul{margin:4px 0 0;padding-left:18px}
 .save{display:inline-block;background:#E5F5EC;color:var(--green);font-weight:800;font-size:12px;padding:2px 8px;border-radius:999px}
 .row{display:flex;gap:8px;align-items:center}
+.add-row{display:flex;align-items:center;gap:8px}
+.add-row .colour{flex:1;min-width:0;margin:0}
+.addbtn{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
+.addbtn svg{width:22px;height:22px}
+.addbtn:active{transform:scale(.92)}
 .qty{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--field)}
 .qty button{border:0;background:transparent;width:32px;height:34px;cursor:pointer;font-weight:800;font-size:16px}
 .qty input{width:36px;border:0;text-align:center;font-weight:700;background:transparent;-moz-appearance:textfield}
@@ -319,7 +324,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.66'; // bump with each update
+const APP_VERSION = '0.67'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -914,9 +919,8 @@ function productCard(p){
   return `<div class="card" data-pid="${p.id}"><img class="img" src="${imgOf(p)}" alt="${esc(p.name)}"${p.colourChoice?rcAttrs(p,firstCol):''}><div class="body">
       <div class="row" style="justify-content:space-between;align-items:flex-start"><h3>${esc(p.name)}</h3><span class="price">${p.price?money(p.price):'<span class="muted small">Price TBC</span>'}</span></div>
       <div class="muted small">${esc(p.description)}</div><div class="spacer"></div>
-      ${p.colourChoice?`<select class="colour" aria-label="Colour" data-chg="cardColour">${extraColours().map(c=>`<option>${esc(c)}</option>`).join('')}</select>`:''}
-      <div class="row"><div class="qty"><button data-act="cardQty" data-d="-1">−</button><input type="number" class="cq" value="1" min="1"><button data-act="cardQty" data-d="1">+</button></div>
-        <button class="btn primary" style="flex:1" data-act="addToCart" ${p.price?'':'disabled'}>${p.price?'Add to cart':'Coming soon'}</button></div></div></div>`;
+      <div class="add-row">${p.colourChoice?`<select class="colour" aria-label="Colour" data-chg="cardColour">${extraColours().map(c=>`<option>${esc(c)}</option>`).join('')}</select>`:'<div class="spacer"></div>'}
+        ${p.price?`<button class="addbtn" data-act="addToCart" aria-label="Add ${esc(p.name)} to cart" title="Add to cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`:'<span class="muted small" style="white-space:nowrap">Coming soon</span>'}</div></div></div>`;
 }
 function builderPanel(){
   const b=ui.builder, k=Store.product(b.kitId); if(!k) return '';
@@ -1731,7 +1735,7 @@ const actions = {
   shopTab:el=>{ui.shopTab=el.dataset.v;render();},
   cardQty:el=>{const i=el.closest('.card').querySelector('.cq');i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d));},
   addToCart:el=>{
-    const card=el.closest('.card'), id=card.dataset.pid, qty=Math.max(1,parseInt(card.querySelector('.cq').value)||1), colour=card.querySelector('.colour')?.value||'';
+    const card=el.closest('.card'), id=card.dataset.pid, qty=Math.max(1,parseInt(card.querySelector('.cq')?.value)||1), colour=card.querySelector('.colour')?.value||'';
     const ex=cart.find(l=>l.productId===id&&l.colour===colour&&!l.picks); ex?ex.qty+=qty:cart.push({key:uid(),productId:id,qty,colour});
     saveCart(); render(); toast(`Added ${qty} × ${Store.product(id).name}`);
   },
