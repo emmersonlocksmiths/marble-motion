@@ -26,7 +26,7 @@
   --accent:#2F5FD0; --accent-ink:#fff; --accent-soft:#E6EDFC;
   --red:#E4572E; --yellow:#F3B61F; --green:#2E9E6A; --purple:#7B5CD6;
   --radius:16px; --shadow:0 1px 2px rgba(31,36,48,.06),0 4px 14px rgba(31,36,48,.06);
-  --field:#FFFFFF; --hover:#F4EFE6; --tabs:#EFE8DC; --soft:#FBF8F3; --imgbg:#F2ECE2; --header:rgba(251,247,240,.92);
+  --field:#FFFFFF; --hover:#F4EFE6; --tabs:#EFE8DC; --soft:#FBF8F3; --imgbg:#FFFFFF; --header:rgba(251,247,240,.92);
   --stage:radial-gradient(circle at 50% 35%,#ffffff,#EFE8DC);
   --note-bg:#FFF4D6; --note-line:#F3DD9B; --note-ink:#7A5600;
   --info-bg:#EEF2FC; --info-line:#C9D7F8; --info-ink:#24418F;
@@ -38,7 +38,7 @@
   --accent:#5B8CFF; --accent-ink:#fff; --accent-soft:#1D2A4D;
   --red:#FF6B4A; --green:#3FC387;
   --shadow:0 1px 2px rgba(0,0,0,.3),0 6px 18px rgba(0,0,0,.25);
-  --field:#141821; --hover:#232937; --tabs:#202634; --soft:#1F2430; --imgbg:#232836; --header:rgba(17,20,27,.9);
+  --field:#141821; --hover:#232937; --tabs:#202634; --soft:#1F2430; --imgbg:#1A1E28; --header:rgba(17,20,27,.9);
   --stage:radial-gradient(circle at 50% 35%,#2A3142,#151922);
   --note-bg:#2E2614; --note-line:#5A4A1F; --note-ink:#F3D27A;
   --info-bg:#18223A; --info-line:#2D3E66; --info-ink:#A9C1FF;
@@ -314,7 +314,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.61'; // bump with each update
+const APP_VERSION = '0.62'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -532,51 +532,86 @@ function rgb2hsl(r,g,b){ r/=255;g/=255;b/=255; const mx=Math.max(r,g,b), mn=Math
   if(mx!==mn){ const d=mx-mn; s=l>.5?d/(2-mx-mn):d/(mx+mn); h=mx===r?(g-b)/d+(g<b?6:0):mx===g?(b-r)/d+2:(r-g)/d+4; h*=60; } return [h,s,l]; }
 function hsl2rgb(h,s,l){ const k=n=>(n+h/30)%12, a=s*Math.min(l,1-l), f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1)); return [f(0)*255,f(8)*255,f(4)*255]; }
 function hexRgb(hex){ const n=parseInt((hex||'#888').replace('#',''),16); return [n>>16&255,n>>8&255,n&255]; }
-function recolourData(img, hex){
+function recolourData(img, hex, bgHex){
   const W=img.naturalWidth, H=img.naturalHeight, c=document.createElement('canvas'); c.width=W; c.height=H;
   const g=c.getContext('2d'); g.drawImage(img,0,0); const id=g.getImageData(0,0,W,H), d=id.data, N=W*H;
   // 1. background = average colour around the edges
   let br=0,bg=0,bb=0,bn=0; const edge=(x,y)=>{const i=(y*W+x)*4; br+=d[i];bg+=d[i+1];bb+=d[i+2];bn++;};
   for(let x=0;x<W;x+=2){edge(x,0);edge(x,H-1);} for(let y=0;y<H;y+=2){edge(0,y);edge(W-1,y);} br/=bn;bg/=bn;bb/=bn;
-  const isBg=i=>{const dr=d[i]-br,dg=d[i+1]-bg,db=d[i+2]-bb; return dr*dr+dg*dg+db*db<38*38;};
-  // 2. the piece's main hue
+  const bgD2=i=>{const dr=d[i]-br,dg=d[i+1]-bg,db=d[i+2]-bb; return dr*dr+dg*dg+db*db;};
+  const isBg=i=>bgD2(i)<38*38;
+  // background mask: flood-filled in from the edges across smooth, background-coloured pixels (shadows included).
+  // It stops at the piece's outline, so light parts inside the piece are never treated as background.
+  const bgw=new Float32Array(N), ring=new Float32Array(N); // bgw: 1 = background, -1 = outline pixel (share in ring)
+  if(bgHex){ const bs=br+bg+bb||1, rr=br/bs, rg=bg/bs, q=new Int32Array(N); let qh=0,qt=0;
+    const bgLike=i=>{ const s=d[i]+d[i+1]+d[i+2]; if(s<bs*.3) return false; return Math.abs(d[i]/s-rr)+Math.abs(d[i+1]/s-rg)<.05; };
+    const step=(a,b)=>Math.abs(d[a]-d[b])+Math.abs(d[a+1]-d[b+1])+Math.abs(d[a+2]-d[b+2])<20;
+    const seed=p=>{ if(!bgw[p]&&bgLike(p*4)){ bgw[p]=1; q[qt++]=p; } };
+    const go=(p,n)=>{ if(!bgw[n]&&bgLike(n*4)&&step(p*4,n*4)){ bgw[n]=1; q[qt++]=n; } };
+    for(let x=0;x<W;x++){seed(x);seed((H-1)*W+x);} for(let y=0;y<H;y++){seed(y*W);seed(y*W+W-1);}
+    while(qh<qt){ const p=q[qh++], x=p%W; if(x>0)go(p,p-1); if(x<W-1)go(p,p+1); if(p>=W)go(p,p-W); if(p<N-W)go(p,p+W); }
+    // soften the outline: the few pixels just inside it are a blend of piece and background, so work out how much
+    // of each (compared with a solid piece pixel nearby) and swap only the background share
+    const nbrs=p=>{const x=p%W,o=[]; if(x>0)o.push(p-1); if(x<W-1)o.push(p+1); if(p>=W)o.push(p-W); if(p<N-W)o.push(p+W); return o;};
+    let cur=[]; for(let p=0;p<N;p++) if(!bgw[p]&&nbrs(p).some(n=>bgw[n]===1)) cur.push(p);
+    for(let k=0;k<3;k++){ const next=[]; for(const p of cur){ if(bgw[p]) continue; bgw[p]=-1; } for(const p of cur) for(const n of nbrs(p)) if(!bgw[n]) next.push(n); cur=next; }
+    for(let p=0;p<N;p++){ if(bgw[p]!==-1) continue; const x=p%W, y=(p-x)/W; let P=-1, pd=-1;
+      for(let dy=-4;dy<=4;dy++) for(let dx=-4;dx<=4;dx++){ const xx=x+dx, yy=y+dy; if(xx<0||yy<0||xx>=W||yy>=H) continue; const n=yy*W+xx; if(bgw[n]) continue; const v=bgD2(n*4); if(v>pd){pd=v;P=n;} }
+      if(P<0){ ring[p]=1; continue; } const i=p*4, pi=P*4, vx=br-d[pi], vy=bg-d[pi+1], vz=bb-d[pi+2], L2=vx*vx+vy*vy+vz*vz||1;
+      ring[p]=Math.max(0,Math.min(1,((d[i]-d[pi])*vx+(d[i+1]-d[pi+1])*vy+(d[i+2]-d[pi+2])*vz)/L2)); }
+  }
+
+  let changed=false;
+  // 2. colour swap
+  if(hex){
   const hsl=new Float32Array(N*3), fg=new Uint8Array(N), bins=new Float32Array(36);
   for(let p=0,i=0;p<N;p++,i+=4){ const [h,sa,l]=rgb2hsl(d[i],d[i+1],d[i+2]); hsl[p*3]=h;hsl[p*3+1]=sa;hsl[p*3+2]=l;
     if(d[i+3]>20&&!isBg(i)){ fg[p]=1; if(sa>.2&&l>.08&&l<.94) bins[Math.floor(h/10)%36]+=sa; } }
   let best=0; for(let b=1;b<36;b++) if(bins[b]+bins[(b+35)%36]+bins[(b+1)%36]>bins[best]+bins[(best+35)%36]+bins[(best+1)%36]) best=b;
   let hx=0,hy=0; for(const o of [-1,0,1]){ const b=(best+o+36)%36, a=(b*10+5)*Math.PI/180; hx+=Math.cos(a)*bins[b]; hy+=Math.sin(a)*bins[b]; }
   const H0=(Math.atan2(hy,hx)*180/Math.PI+360)%360, hd=h=>{const x=Math.abs(h-H0)%360; return x>180?360-x:x;};
-  // weight: 1 = definitely the piece, fades out at the edge of the hue band
   const wt=new Float32Array(N); let S0=0,L0=0,wn=0, fgN=0;
   for(let p=0;p<N;p++){ if(!fg[p]) continue; fgN++; const sa=hsl[p*3+1]; if(sa<.12) continue;
     const dist=hd(hsl[p*3]), w=dist<28?1:dist<50?(50-dist)/22:0; const ws=w*Math.min(1,(sa-.12)/.12);
     if(ws>0){ wt[p]=ws; S0+=sa*ws; L0+=hsl[p*3+2]*ws; wn+=ws; } }
-  const mono = wn < fgN*0.15; // piece photographed in white/grey/black
-  if(mono) return null; // white/grey/black photo: no colour to swap, so the original photo is shown
-  if(!wn) return null;
-  S0/=wn; L0/=wn;
-  const [Ht,St,Lt]=rgb2hsl(...hexRgb(hex)), grey=St<.12;
-  for(let p=0,i=0;p<N;p++,i+=4){ const w=wt[p]; if(!w) continue;
-    const l=hsl[p*3+2], sa=hsl[p*3+1];
-    const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85||Lt<.2?.6:.9)));
-    const ns=grey?St:Math.max(0,Math.min(1,mono?St:sa*St/Math.max(.05,S0)));
-    const [r,gg,b]=hsl2rgb(Ht,ns,nl);
-    d[i]=d[i]*(1-w)+r*w; d[i+1]=d[i+1]*(1-w)+gg*w; d[i+2]=d[i+2]*(1-w)+b*w; }
-  g.putImageData(id,0,0); return c.toDataURL('image/jpeg',.88);
+  const mono = wn < fgN*0.15; // white/grey/black piece: no colour to swap, so its own colour is kept
+  if(!mono&&wn){ S0/=wn; L0/=wn; changed=true;
+    const [Ht,St,Lt]=rgb2hsl(...hexRgb(hex)), grey=St<.12;
+    for(let p=0,i=0;p<N;p++,i+=4){ const w=wt[p]; if(!w) continue;
+      const l=hsl[p*3+2], sa=hsl[p*3+1];
+      const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85||Lt<.2?.6:.9)));
+      const ns=grey?St:Math.max(0,Math.min(1,sa*St/Math.max(.05,S0)));
+      const [r,gg,b]=hsl2rgb(Ht,ns,nl);
+      d[i]=d[i]*(1-w)+r*w; d[i+1]=d[i+1]*(1-w)+gg*w; d[i+2]=d[i+2]*(1-w)+b*w; } }
+  }
+  // 3. background swap to the theme's box colour
+  // (scales the background and its shadows together, so shadows stay soft)
+  if(bgHex){ const [R,G,B]=hexRgb(bgHex), kr=R/Math.max(1,br), kg=G/Math.max(1,bg), kb=B/Math.max(1,bb); changed=true;
+    for(let p=0,i=0;p<N;p++,i+=4){ const w=bgw[p]; if(!w) continue;
+      if(w===1){ d[i]=Math.min(255,d[i]*kr); d[i+1]=Math.min(255,d[i+1]*kg); d[i+2]=Math.min(255,d[i+2]*kb); }
+      else { const t=ring[p]; d[i]+=t*(R-br); d[i+1]+=t*(G-bg); d[i+2]+=t*(B-bb); } } }
+  if(!changed) return null;
+  g.putImageData(id,0,0); return c.toDataURL('image/jpeg',.9);
 }
-function recolourSrc(src, hex){
-  const key=hex+'|'+src.length+'|'+src.slice(-40);
+function recolourSrc(src, hex, bgHex=''){
+  const key=hex+'|'+bgHex+'|'+src.length+'|'+src.slice(-40);
   if(RC.cache.has(key)) return Promise.resolve(RC.cache.get(key));
   if(!RC.jobs.has(key)) RC.jobs.set(key,new Promise(res=>{ const im=new Image();
-    im.onload=()=>{ let out=src; try{ out=recolourData(im,hex)||src; }catch(e){ console.warn('recolour',e); } RC.cache.set(key,out); RC.jobs.delete(key); res(out); };
+    im.onload=()=>{ let out=src; try{ out=recolourData(im,hex,bgHex)||src; }catch(e){ console.warn('recolour',e); } RC.cache.set(key,out); RC.jobs.delete(key); res(out); };
     im.onerror=()=>{ RC.jobs.delete(key); res(src); }; im.src=src; }));
   return RC.jobs.get(key);
 }
-// <img data-rc="#hex" data-pid="..."> → swap to the recoloured photo
+const imgBgHex = () => (getComputedStyle(document.documentElement).getPropertyValue('--imgbg')||'').trim();
+// every product photo on screen: background matched to the theme, and recoloured where a colour is set (data-rc)
 function applyRecolour(root=document){
-  root.querySelectorAll('img[data-rc][data-rcpid]').forEach(el=>{ const p=Store.product(el.dataset.rcpid), hex=el.dataset.rc; if(!p?.image) return;
-    if(!hex){ if(el.getAttribute('src')!==p.image) el.src=p.image; return; }
-    const want=hex; el.dataset.rcWant=want; recolourSrc(p.image,hex).then(u=>{ if(el.dataset.rcWant===want) el.src=u; }); });
+  const byImg=new Map(); Store.products.forEach(p=>{ if(p.image) byImg.set(p.image,p); });
+  const bgHex=/^#[0-9a-f]{6}$/i.test(imgBgHex())?imgBgHex():'';
+  root.querySelectorAll('img').forEach(el=>{
+    let p=el.dataset.rcpid?Store.product(el.dataset.rcpid):byImg.get(el.getAttribute('src'));
+    if(!p?.image) return; el.dataset.rcpid=p.id;
+    const hex=el.dataset.rc||'', want=hex+'|'+bgHex; if(el.dataset.rcWant===want) return; el.dataset.rcWant=want;
+    if(!hex&&!bgHex){ el.src=p.image; return; }
+    recolourSrc(p.image,hex,bgHex).then(u=>{ if(el.dataset.rcWant===want) el.src=u; }); });
 }
 // attributes for an <img> that should follow a colour (only real photos get recoloured)
 const rcAttrs = (p, colourName) => p?.image&&p.recolour!==false&&p.tier!=='marbles' ? ` data-rcpid="${p.id}" data-rc="${colourName?colourHex(colourName):''}"` : '';
@@ -790,7 +825,7 @@ function paintTheme(){ const t=effTheme();
   const dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme',dark?'dark':'light');
   const m=document.querySelector('meta[name=theme-color]'); if(m&&!/[?&]app=admin/.test(location.search)) m.content=dark?'#11141B':'#FBF7F0'; }
-if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(effTheme()==='auto'){ paintTheme(); mountTower(); } });
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(effTheme()==='auto'){ paintTheme(); mountTower(); applyRecolour(); } });
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
 function header(){
