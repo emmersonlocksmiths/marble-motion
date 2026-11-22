@@ -262,7 +262,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.52'; // bump with each update
+const APP_VERSION = '0.53'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1133,12 +1133,12 @@ function productModal(){
         ${p.image?`<button type="button" class="btn sm" data-act="removeImage">Remove</button>`:''}</div></div>
       <label class="f full">Name<input type="text" name="name" value="${esc(p.name)}"></label>
       ${kit?'':`<label class="f">Type<select name="tier">${TIER_ORDER.map(t=>`<option value="${t}" ${p.tier===t?'selected':''}>${TIERS[t]}</option>`).join('')}</select></label>`}
-      <label class="f">Retail price (AUD)<input type="number" step="0.01" min="0" name="price" value="${p.price||''}" placeholder="Not set"></label>
+      <label class="f">Retail price (AUD)<input type="number" step="any" min="0" name="price" value="${p.price||''}" placeholder="Not set"></label>
       <div class="f ${kit?'':'full'}"><span>Cost to make <span class="hint">${kit?'average picks':'from your costing rules'}</span></span><div style="padding:6px 0;font-weight:800">${money(cost)}
         <span class="muted small" style="font-weight:600">${p.price?`· markup ${cost?Math.round((p.price-cost)/cost*100):0}% · profit ${money(p.price-cost)}`:'· set a price to see markup'}</span></div></div>
-      ${kit?'':(p.tier==='marbles'?`<label class="f">Cost per pack ($)<input type="number" step="0.01" min="0" name="boughtIn" value="${num(p.boughtIn)}"></label>`
-        :`<label class="f">Filament (grams)<input type="number" step="1" min="0" name="grams" value="${num(p.grams)}"></label>
-          <label class="f">Print time (hours)<input type="number" step="0.1" min="0" name="printHours" value="${num(p.printHours)}"></label>
+      ${kit?'':(p.tier==='marbles'?`<label class="f">Cost per pack ($)<input type="number" step="any" min="0" name="boughtIn" value="${+num(p.boughtIn).toFixed(2)}"></label>`
+        :`<label class="f">Filament (grams)<input type="number" step="any" min="0" name="grams" value="${+num(p.grams).toFixed(2)}"></label>
+          <label class="f">Print time (hours)<input type="number" step="any" min="0" name="printHours" value="${+num(p.printHours).toFixed(2)}"></label>
 `)}
       <label class="f full">Description<textarea name="description" rows="2">${esc(p.description)}</textarea></label>
       ${kit?`<label class="f">Premium pieces customer chooses<input type="number" min="0" step="1" name="choosePremium" value="${num(p.choosePremium)}"></label>
@@ -1163,7 +1163,7 @@ function syncEditor(){
   const d=new FormData(f), e=ui.editing;
   e.name=d.get('name')||''; e.price=num(d.get('price')); e.description=d.get('description')||''; e.active=!!d.get('active');
   if(e.type==='kit'){ e.chooseBasic=num(d.get('chooseBasic')); e.choosePremium=num(d.get('choosePremium')); e.marbleChoice=!!d.get('marbleChoice'); e.colourChoice=!!d.get('colourChoice'); }
-  else { e.tier=d.get('tier')||e.tier; ['grams','printHours','boughtIn'].forEach(k=>{ if(d.has(k)) e[k]=num(d.get(k)); }); e.colourChoice=e.tier!=='marbles'&&!!d.get('colourChoice'); }
+  else { e.tier=d.get('tier')||e.tier; ['grams','printHours','boughtIn'].forEach(k=>{ if(d.has(k)){ const v=num(d.get(k)); if(Math.abs(v-num(e[k]))>0.006) e[k]=v; } }); e.colourChoice=e.tier!=='marbles'&&!!d.get('colourChoice'); }
 }
 function resizeImage(file){
   return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>{const img=new Image();img.onload=()=>{
