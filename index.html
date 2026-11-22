@@ -243,6 +243,7 @@ body{overscroll-behavior-y:none}
 /* ---------- v0.56: admin on phones ---------- */
 .m-only{display:none}
 .admin-nav{display:none}
+.admin-tabs .tic{width:18px;height:18px;vertical-align:-4px;margin-right:6px}
 table.t td.num{white-space:nowrap}
 .o-card{display:block;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer}
 .o-card:last-child{border-bottom:0}
@@ -262,9 +263,10 @@ table.t td.num{white-space:nowrap}
   .admin-nav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--header);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
     border-top:1px solid var(--line);padding:6px 2px calc(6px + env(safe-area-inset-bottom))}
   .admin-nav button{flex:1;border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:1px;font-size:11px;font-weight:700;color:var(--muted);padding:4px 0;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent}
-  .admin-nav .ic{font-size:21px;line-height:1.25;filter:grayscale(1);opacity:.6}
+  .admin-nav .ic{display:flex;height:28px;align-items:center;color:var(--muted)}
+  .admin-nav .ic .tic{width:25px;height:25px}
   .admin-nav button.on{color:var(--accent)}
-  .admin-nav button.on .ic{filter:none;opacity:1}
+  .admin-nav button.on .ic{color:var(--accent)}
   .admin-nav .pill{position:absolute;top:0;left:calc(50% + 5px);height:18px;min-width:18px;font-size:11px}
   .admin-bar{margin-bottom:10px}
   .demo-note{font-size:12.5px;padding:8px 12px;margin-bottom:10px;border-radius:10px}
@@ -316,7 +318,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.64'; // bump with each update
+const APP_VERSION = '0.65'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1089,6 +1091,9 @@ function printInvoice(id){
 }
 
 /* ---------- ADMIN ---------- */
+// admin tab icons: Tabler Icons (MIT licence, tabler.io)
+const TAB_ICONS = {orders:'<path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" /><path d="M12 12l8 -4.5" /><path d="M12 12l0 9" /><path d="M12 12l-8 -4.5" /><path d="M16 5.25l-8 4.5" />',shop:'<path d="M3 21l18 0" /><path d="M3 7v1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1m0 1a3 3 0 0 0 6 0v-1h-18l2 -4h14l2 4" /><path d="M5 21l0 -10.15" /><path d="M19 21l0 -10.15" /><path d="M9 21v-4a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v4" />',costs:'<path d="M9 5h-2a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-12a2 2 0 0 0 -2 -2h-2" /><path d="M9 5a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2a2 2 0 0 1 -2 2h-2a2 2 0 0 1 -2 -2" /><path d="M14 11h-2.5a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 1 0 3h-2.5" /><path d="M12 17v1m0 -8v1" />',stats:'<path d="M3 13a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v6a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -6" /><path d="M15 9a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -10" /><path d="M9 5a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1l0 -14" /><path d="M4 20h14" />',settings:'<path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065" /><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0" />'};
+const tabIcon = k => `<svg class="tic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${TAB_ICONS[k]}</svg>`;
 function viewAdmin(){
   if(CLOUD&&!ui.admin){ const u=Cloud.user;
     return `<div class="panel" style="max-width:420px;margin:40px auto;text-align:center">${logo(48)}<h2 style="margin:8px 0">Admin sign in</h2>
@@ -1107,13 +1112,13 @@ function viewAdmin(){
     <form data-form="login"><input type="password" name="pin" placeholder="PIN" inputmode="numeric" style="text-align:center;font-size:20px;letter-spacing:.3em">
     <button class="btn primary block" style="margin-top:10px">Log in</button></form></div>`;
   const newCount=Store.orders.filter(o=>o.status==='new').length;
-  const tabs=[['orders','📦 Orders',newCount,'📦','Orders'],['shop','🧩 Shop',0,'🧩','Shop'],['costs','💲 Costs & pricing',0,'💲','Costs'],['stats','📈 Stats',0,'📈','Stats'],['settings','⚙️ Settings',0,'⚙️','Settings']];
+  const tabs=[['orders','Orders',newCount,'','Orders'],['shop','Shop',0,'','Shop'],['costs','Costs & pricing',0,'','Costs'],['stats','Stats',0,'','Stats'],['settings','Settings',0,'','Settings']];
   const body={orders:adminOrders,shop:adminShop,costs:adminCosts,stats:adminStats,settings:adminSettings}[ui.adminTab]();
   return `<div class="admin-bar"><h1>Admin</h1><span class="chip" style="background:var(--tabs);color:var(--muted);text-transform:none">v${APP_VERSION}</span></div>
     ${CLOUD?'':`<div class="demo-note">${REQUIRE_PIN?'':'<b>PIN is off for testing.</b> '}<b>Preview mode:</b> changes save in this browser only. The live site on GitHub Pages saves to Firebase.</div>`}
     ${CLOUD&&Cloud.empty?setupPanel():''}
-    <div class="tabs admin-tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}
-    <nav class="admin-nav">${tabs.map(([k,l,n,ic,sh])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}"><span class="ic">${ic}</span>${sh}${n?`<span class="pill">${n}</span>`:''}</button>`).join('')}</nav>`;
+    <div class="tabs admin-tabs">${tabs.map(([k,l,n])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}">${tabIcon(k)}${l}${n?` <span class="pill">${n}</span>`:''}</button>`).join('')}</div>${body}
+    <nav class="admin-nav">${tabs.map(([k,l,n,ic,sh])=>`<button class="${ui.adminTab===k?'on':''}" data-act="adminTab" data-v="${k}"><span class="ic">${tabIcon(k)}</span>${sh}${n?`<span class="pill">${n}</span>`:''}</button>`).join('')}</nav>`;
 }
 
 const TERMS_UPDATED='22 November 2026';
