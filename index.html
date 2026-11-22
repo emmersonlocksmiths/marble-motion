@@ -314,7 +314,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.60'; // bump with each update
+const APP_VERSION = '0.61'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -801,13 +801,14 @@ function header(){
     ${r==='admin'
       ? `<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button><a class="btn sm" href="#shop"><span class="hide-m">View&nbsp;</span>Shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
       : `${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
+         ${ui.admin?`<a class="btn sm" href="#admin">⚙️ Admin</a><button class="btn sm" data-act="logout">Log out</button>`:`<a class="btn sm" href="#admin">Log in</a>`}
          <a class="btn primary" href="#cart">🛒 Cart ${cartCount()?`<span class="pill" style="background:#fff;color:var(--accent)">${cartCount()}</span>`:''}</a>`}
   </div></header>`;
 }
 function footer(){
   const s=Store.settings;
   return `<footer><div class="wrap"><span>© ${new Date().getFullYear()} ${esc(s.shopName)} · operated by ${esc(s.legalName)}</span>
-    <div class="spacer"></div><a href="#terms" style="color:var(--muted)">Terms &amp; Conditions</a><span class="muted small" style="opacity:.75">v${APP_VERSION}</span><a href="#admin" style="color:var(--muted)">Admin</a></div></footer>`;
+    <div class="spacer"></div><a href="#terms" style="color:var(--muted)">Terms &amp; Conditions</a><span class="muted small" style="opacity:.75">v${APP_VERSION}</span></div></footer>`;
 }
 
 /* ---------- SHOP ---------- */
