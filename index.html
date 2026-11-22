@@ -6,7 +6,7 @@
 <title>Marble Motion</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&display=swap">
-<script>(function(){ var t='auto'; try{ t=localStorage.getItem('mm_theme')||'auto'; }catch(e){}
+<script>(function(){ var t='auto'; try{ if(location.hash==='#admin') t=localStorage.getItem('mm_theme')||'auto'; }catch(e){} /* shop always follows the device */
   var dark = t==='dark' || (t==='auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme', dark?'dark':'light'); })();</script>
 <meta name="description" content="Designed for motion, built for fun. Build-your-own 3D printed marble towers, made on the Sunshine Coast.">
@@ -314,7 +314,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.56'; // bump with each update
+const APP_VERSION = '0.57'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -727,21 +727,23 @@ const logo = (s=34) => `<svg width="${s}" height="${s}" viewBox="0 0 400 400" ar
   <circle cx="150" cy="52" r="30" fill="#F3B61F"/><circle cx="250" cy="160" r="30" fill="#E4572E"/><circle cx="176" cy="273" r="30" fill="#2F5FD0"/><circle cx="345" cy="40" r="25" fill="#2E9E6A"/></svg>`;
 const THEMES={auto:'🌓',light:'☀️',dark:'🌙'}, THEME_NAMES={auto:'Auto (matches your device)',light:'Light',dark:'Dark'};
 const getTheme=()=>{ try{ return localStorage.getItem('mm_theme')||'auto'; }catch(e){ return 'auto'; } };
-function applyTheme(t){ try{ localStorage.setItem('mm_theme',t); }catch(e){}
+function applyTheme(t){ try{ localStorage.setItem('mm_theme',t); }catch(e){} paintTheme(); }
+const effTheme=()=>route()==='admin'?getTheme():'auto'; // the shop always follows the device's light/dark setting
+function paintTheme(){ const t=effTheme();
   const dark=t==='dark'||(t==='auto'&&window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
   document.documentElement.setAttribute('data-theme',dark?'dark':'light');
   const m=document.querySelector('meta[name=theme-color]'); if(m&&!/[?&]app=admin/.test(location.search)) m.content=dark?'#11141B':'#FBF7F0'; }
-if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(getTheme()==='auto'){ applyTheme('auto'); mountTower(); } });
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(effTheme()==='auto'){ paintTheme(); mountTower(); } });
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
 function header(){
   const s=Store.settings, r=route();
   return `<header class="top"><div class="wrap">
-    <a class="brand" href="#shop">${logo()}<span>${esc(s.shopName)}<small>${esc(s.tagline)}</small></span></a>
+    ${r==='admin'?`<a class="brand" href="#shop">${logo()}<span>${esc(s.shopName)}<small>${esc(s.tagline)}</small></span></a>`:''}
     <div class="spacer"></div>
     ${r==='admin'
       ? `<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button><a class="btn sm" href="#shop"><span class="hide-m">View&nbsp;</span>Shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
-      : `<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button>${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
+      : `${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
          <a class="btn primary" href="#cart">🛒 Cart ${cartCount()?`<span class="pill" style="background:#fff;color:var(--accent)">${cartCount()}</span>`:''}</a>`}
   </div></header>`;
 }
@@ -1566,7 +1568,7 @@ const TowerView = (()=>{
 function render(){
   const r=route(), views={shop:viewShop,cart:viewCart,checkout:viewCheckout,thanks:viewThanks,admin:viewAdmin,terms:()=>`<div class="panel" style="max-width:820px;margin:0 auto">${termsHTML()}<p style="margin-top:20px"><a class="btn" href="#shop">← Back to shop</a></p></div>`};
   const bar=(r==='shop'&&cartCount()&&!ui.builder)?`<a class="cart-bar" href="#cart">🛒 View cart · ${cartCount()} item${cartCount()===1?'':'s'}<span class="spacer"></span>${money(totals(ui.delivery).subtotal)} →</a>`:'';
-  document.body.classList.toggle('is-admin',r==='admin'&&!!ui.admin); $('#app').innerHTML=header()+`<main><div class="wrap">${views[r]()}</div></main>`+footer()+bar; renderModal(); mountTower();
+  paintTheme(); document.body.classList.toggle('is-admin',r==='admin'&&!!ui.admin); $('#app').innerHTML=header()+`<main><div class="wrap">${views[r]()}</div></main>`+footer()+bar; renderModal(); mountTower();
 }
 function renderModal(){
   const m=$('#modal-root'), r=route();
