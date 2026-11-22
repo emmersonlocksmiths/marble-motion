@@ -151,6 +151,7 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .bar .lbl{font-size:12px;color:var(--muted);font-weight:700}
 .bar .val{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums}
 .inc-row{display:grid;grid-template-columns:1fr 90px 36px;gap:8px;margin-bottom:8px}
+.alt-box{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:-2px 0 8px;background:var(--soft)}
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px}
 .switch input{width:18px;height:18px;accent-color:var(--accent)}
 .swatch{display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.15);vertical-align:-1px;margin-right:4px}
@@ -318,7 +319,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.65'; // bump with each update
+const APP_VERSION = '0.66'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -350,9 +351,9 @@ const paletteByName = n => (Store.settings.palettes||[]).find(p=>p.name===n);
 function colourHex(name){ for(const p of (Store.settings.palettes||[])) { const c=p.colours.find(c=>c.name===name); if(c) return c.hex; } return COLOUR_HEX[name]||'#ccc'; }
 const MARBLE_HEX = {yellow:'#F3B61F',blue:'#2F5FD0',red:'#E4572E',green:'#2E9E6A',white:'#F2F2F2',black:'#2A2A2A'};
 // the pieces that make up a package, in tower order (tracks bottom-up, then components)
-function packagePieces(k, picks, products){
+function packagePieces(k, picks, products, swaps){
   const P=id=>products.find(x=>x.id===id), comps=[], basics=[], picked=[];
-  (k.includes||[]).forEach(i=>{ for(let n=0;n<i.qty;n++){ const p=P(i.partId); if(p) comps.push({key:'c-'+i.partId+'-'+n,partId:p.id,name:p.name,tier:p.tier}); } });
+  kitIncludes(k,swaps).forEach(i=>{ for(let n=0;n<i.qty;n++){ const p=P(i.partId); if(p) comps.push({key:'c-'+i.partId+'-'+n,partId:p.id,name:p.name,tier:p.tier}); } });
   (k.presetBasic||[]).forEach((i,idx)=>{ for(let n=0;n<i.qty;n++){ const p=P(i.partId); if(p) basics.push({key:'b-'+idx+'-'+n,partId:p.id,name:p.name,tier:'basic'}); } });
   Object.entries(picks||{}).forEach(([id,q])=>{ for(let n=0;n<q;n++){ const p=P(id); if(p) picked.push({key:'p-'+id+'-'+n,partId:id,name:p.name,tier:p.tier}); } });
   const tracks=[], total=basics.length+picked.length; let bi=0, pi=0;
@@ -398,6 +399,15 @@ function partBreakdown(p,c){
 }
 const marblePacks = products => products.filter(p=>p.type==='part'&&p.tier==='marbles'&&p.active);
 const defaultMarble = products => { const m=marblePacks(products); return m.length?m.reduce((a,b)=>a.price<=b.price?a:b):null; };
+// "pick one" components: an included item (e.g. the top hopper) can list alternatives the customer may swap to.
+// swaps = {includeIndex: chosenPartId}. Price difference = chosen price − included price (× qty).
+const incOptions = i => [i.partId,...(i.alts||[]).filter(a=>a&&a!==i.partId)];
+function kitIncludes(k, swaps){ return (k.includes||[]).map((i,idx)=>{ const s=swaps&&swaps[idx]; return s&&s!==i.partId&&incOptions(i).includes(s)?{...i,partId:s}:{...i}; }); }
+function swapPrice(k, idx, partId, products){ const i=(k.includes||[])[idx]; if(!i||partId===i.partId||!incOptions(i).includes(partId)) return 0;
+  const a=products.find(x=>x.id===partId), b=products.find(x=>x.id===i.partId); return a&&b?(a.price-b.price)*num(i.qty):0; }
+function swapUpgrade(k, swaps, products){ return Object.entries(swaps||{}).reduce((t,[idx,id])=>t+swapPrice(k,+idx,id,products),0); }
+const kitExtra = (k, sel, products) => marbleUpgrade(k, sel&&sel.marbles, products) + swapUpgrade(k, sel&&sel.swaps, products);
+const signedMoney = v => v>0?'+'+money(v):v<0?'−'+money(-v):'Included';
 function marbleUpgrade(kit, marbleId, products){
   if(!kit.marbleChoice) return 0; const m=products.find(x=>x.id===marbleId), d=defaultMarble(products);
   return m&&d?Math.max(0,m.price-d.price):0;
@@ -409,7 +419,7 @@ function tierAvg(tier, products, c){
 // a package: fixed components + customer's picks (or the average pick if none given) + one marble pack
 function kitBreakdown(k, products, c, sel){
   const b=ZERO();
-  [...(k.presetBasic||[]),...(k.includes||[])].forEach(i=>{const p=products.find(x=>x.id===i.partId); if(p) addB(b,partBreakdown(p,c),i.qty);});
+  [...(k.presetBasic||[]),...kitIncludes(k,sel&&sel.swaps)].forEach(i=>{const p=products.find(x=>x.id===i.partId); if(p) addB(b,partBreakdown(p,c),i.qty);});
   if(sel&&sel.picks){ for(const [id,q] of Object.entries(sel.picks)){const p=products.find(x=>x.id===id); if(p) addB(b,partBreakdown(p,c),q);} }
   else { [['basic',num(k.chooseBasic)],['premium',num(k.choosePremium)]].forEach(([t,n])=>{ if(n) addB(b,tierAvg(t,products,c).b,n); }); }
   if(k.marbleChoice){ const m=sel&&products.find(x=>x.id===sel.marbles);
@@ -439,8 +449,9 @@ function checkOrder(o){
     if(!p.active) issues.push({msg:`${esc(p.name)} is currently hidden from the shop`});
     let exp=p.price;
     if(p.type==='kit'){
-      const picks=(i.sel&&i.sel.picks)||{}, mid=i.sel&&i.sel.marbles;
-      exp+=marbleUpgrade(p,mid,P);
+      const picks=(i.sel&&i.sel.picks)||{}, mid=i.sel&&i.sel.marbles, sw=(i.sel&&i.sel.swaps)||{};
+      exp+=marbleUpgrade(p,mid,P)+swapUpgrade(p,sw,P);
+      Object.entries(sw).forEach(([idx,id])=>{ const inc=(p.includes||[])[idx]; if(!inc||!incOptions(inc).includes(id)) issues.push({msg:`${esc(p.name)}: has a component choice that's no longer offered`}); });
       ['basic','premium'].forEach(t=>{ const need=num(t==='basic'?p.chooseBasic:p.choosePremium);
         const ids=Object.entries(picks).filter(([id,q])=>q>0&&P.find(x=>x.id===id)?.tier===t);
         const got=ids.reduce((s,[,q])=>s+Number(q),0);
@@ -483,16 +494,16 @@ function orderCosts(o){
 }
 // turns a cart line into a saved order line (keeps names so old orders survive product edits)
 function makeLine(p, l, products, c){
-  const kit=p.type==='kit', sel=kit?{picks:l.picks||{},marbles:l.marbles}:null;
-  const item={productId:p.id,name:p.name,type:p.type,tier:p.tier||'',price:p.price+(kit?marbleUpgrade(p,l.marbles,products):0),
+  const kit=p.type==='kit', sel=kit?{picks:l.picks||{},marbles:l.marbles,swaps:l.swaps||{}}:null;
+  const item={productId:p.id,name:p.name,type:p.type,tier:p.tier||'',price:p.price+(kit?kitExtra(p,sel,products):0),
     cost:CLOUD&&!Cloud.isAdmin?null:+costOf(p,products,c,sel).toFixed(2),qty:l.qty,colour:l.colour||''};
-  if(kit) item.sel={picks:{...(l.picks||{})},marbles:l.marbles||''};
+  if(kit) item.sel={picks:{...(l.picks||{})},marbles:l.marbles||'',swaps:{...(l.swaps||{})}};
   if(kit){
     item.picks=Object.entries(l.picks||{}).filter(([,q])=>q>0).map(([id,q])=>({name:products.find(x=>x.id===id)?.name||id,qty:q}));
-    item.fixed=[...(p.presetBasic||[]),...(p.includes||[])].map(i=>({name:products.find(x=>x.id===i.partId)?.name||'',qty:i.qty}));
+    item.fixed=[...(p.presetBasic||[]),...kitIncludes(p,l.swaps)].map(i=>({name:products.find(x=>x.id===i.partId)?.name||'',qty:i.qty}));
     const m=products.find(x=>x.id===l.marbles); item.marbles=m?m.name:'';
     if(l.palette){ item.palette=l.palette; item.colour=l.palette+' palette';
-      item.pieceColours=packagePieces(p,l.picks,products).all.map(pc=>({name:pc.name,colour:(l.colourMap||{})[pc.key]||''})); }
+      item.pieceColours=packagePieces(p,l.picks,products,l.swaps).all.map(pc=>({name:pc.name,colour:(l.colourMap||{})[pc.key]||''})); }
   }
   return item;
 }
@@ -805,7 +816,7 @@ const saveCart = () => lsSet(CART_KEY,cart);
 const cartCount = () => cart.reduce((s,l)=>s+l.qty,0);
 const cartLines = () => cart.map(l=>({...l,product:Store.product(l.productId)})).filter(l=>l.product&&l.product.active);
 const hasPackage = () => cartLines().some(l=>l.product.type==='kit');
-const linePrice = l => l.product.price+(l.product.type==='kit'?marbleUpgrade(l.product,l.marbles,Store.products):0);
+const linePrice = l => l.product.price+(l.product.type==='kit'?kitExtra(l.product,{marbles:l.marbles,swaps:l.swaps},Store.products):0);
 const colours = () => { const s=new Set(); (Store.settings.palettes||[]).filter(p=>p.active).forEach(p=>p.colours.forEach(c=>s.add(c.name))); return s.size?[...s]:Store.settings.colours.split(',').map(x=>x.trim()).filter(Boolean); };
 const cartPalette = () => { const l=cart.slice().reverse().find(x=>x.palette); return l?paletteByName(l.palette):null; };
 const extraColours = () => { const p=cartPalette(); return p?p.colours.map(c=>c.name):colours(); };
@@ -890,7 +901,7 @@ function kitCard(k){
   const basics=(k.presetBasic||[]).map(i=>`${i.qty>1?i.qty+' × ':''}${nm(i.partId)}`);
   const inc=[basics.length&&`<li><b>${(k.presetBasic||[]).reduce((s,i)=>s+i.qty,0)} basic pieces:</b> ${basics.join(', ')}</li>`,
     num(k.chooseBasic)&&`<li><b>${k.chooseBasic} basic pieces</b> of your choice</li>`, num(k.choosePremium)&&`<li><b>${k.choosePremium} premium pieces</b> of your choice</li>`,
-    ...(k.includes||[]).map(i=>`<li>${i.qty>1?i.qty+' × ':''}${nm(i.partId)}</li>`), k.marbleChoice&&`<li>1 pack of 10 marbles, your colour</li>`].filter(Boolean).join('');
+    ...(k.includes||[]).map(i=>{const o=incOptions(i); return `<li>${i.qty>1?i.qty+' × ':''}${o.length>1?`${esc(i.label||'')}${i.label?': ':''}${o.map(nm).join(' or ')} <span class="muted">(your choice)</span>`:nm(i.partId)}</li>`;}), k.marbleChoice&&`<li>1 pack of 10 marbles, your colour</li>`].filter(Boolean).join('');
   const on=ui.builder?.kitId===k.id;
   return `<div class="card kit-card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(k)}" alt="${esc(k.name)}"><div class="body">
     <div class="row" style="justify-content:space-between;align-items:flex-start"><h3>${esc(k.name)}</h3><span class="price">${k.price?money(k.price):'<span class="muted small">Price TBC</span>'}</span></div>
@@ -918,9 +929,11 @@ function builderPanel(){
         <img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${q&&b.palette?rcAttrs(p,(b.colourMap||{})['p-'+p.id+'-0']):''}><div class="body" style="padding:10px;gap:6px"><b class="small">${esc(p.name)}</b>
         <button class="btn sm ${q?'primary':''}" data-act="bToggle" data-id="${p.id}" ${!q&&have>=n?'disabled':''}>${q?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`; };
   const complete=picked('basic')===num(k.chooseBasic)&&picked('premium')===num(k.choosePremium)&&(!k.colourChoice||!!b.palette);
-  const unit=k.price+marbleUpgrade(k,b.marbles,Store.products);
-  const fixed=[...(k.presetBasic||[]),...(k.includes||[])];
-  if(k.colourChoice&&b.palette) b.colourMap=assignColours(packagePieces(k,b.picks,Store.products).all,paletteByName(b.palette),b.colourMap);
+  b.swaps=b.swaps||{};
+  const unit=k.price+kitExtra(k,b,Store.products);
+  const fixed=[...(k.presetBasic||[]),...(k.includes||[]).filter(i=>incOptions(i).length<2)];
+  const choiceIdx=(k.includes||[]).map((i,idx)=>incOptions(i).length>1?idx:-1).filter(x=>x>=0);
+  if(k.colourChoice&&b.palette) b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps).all,paletteByName(b.palette),b.colourMap);
   const left=num(k.choosePremium)-picked('premium');
   return `<div class="panel" id="builder" style="margin-top:20px;border:2px solid var(--accent)">
     <div class="row" style="margin-bottom:4px"><h2 style="margin:0">Build your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">✕ Close</button></div>
@@ -928,6 +941,12 @@ function builderPanel(){
     <div class="builder-grid"><div class="b-left">
     ${fixed.length?`<div class="includes" style="margin-bottom:18px"><b>Already in your package</b>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">${fixed.map(i=>{const p=Store.product(i.partId);return p?`<span class="row" style="gap:6px;background:var(--field);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px"><img src="${imgOf(p)}" style="width:26px;height:26px;border-radius:6px;object-fit:contain;background:var(--imgbg)" alt=""${b.palette?rcAttrs(p,(b.colourMap||{})[(p.tier==='basic'&&(k.presetBasic||[]).includes(i)?'b-'+(k.presetBasic||[]).indexOf(i):'c-'+p.id)+'-0']):''}><span class="small">${i.qty>1?i.qty+' × ':''}${esc(p.name)}</span></span>`:'';}).join('')}</div></div>`:''}
+    ${choiceIdx.map(idx=>{ const inc=k.includes[idx], cur=b.swaps[idx]||inc.partId;
+      return `<div style="margin-bottom:18px"><h3 style="margin:0 0 8px">Choose your ${esc((inc.label||Store.product(inc.partId)?.name||'piece').toLowerCase())}</h3>
+      <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${incOptions(inc).map(id=>{const p=Store.product(id); if(!p||!p.active&&id!==inc.partId) return ''; const on=cur===id, up=swapPrice(k,idx,id,Store.products);
+        return `<div class="card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${on&&b.palette?rcAttrs(p,(b.colourMap||{})['c-'+id+'-0']):''}><div class="body" style="padding:10px;gap:6px">
+          <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${esc(p.name)}</b><b class="small">${signedMoney(up)}</b></div>
+          <button class="btn sm ${on?'primary':''}" data-act="bSwap" data-i="${idx}" data-id="${id}">${on?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`;}).join('')}
     ${section('premium',num(k.choosePremium))}${section('basic',num(k.chooseBasic))}
     <div class="form-grid" style="margin-bottom:16px">
       ${k.marbleChoice?`<div><b>Your marbles (10 pack)</b><div style="display:grid;gap:8px;margin-top:8px">${marblePacks(Store.products).map(m=>{const up=marbleUpgrade(k,m.id,Store.products);
@@ -943,7 +962,7 @@ function builderPanel(){
   </div>`;
 }
 function colourSection(k,b){
-  const pal=b.palette?paletteByName(b.palette):null, pcs=packagePieces(k,b.picks,Store.products);
+  const pal=b.palette?paletteByName(b.palette):null, pcs=packagePieces(k,b.picks,Store.products,b.swaps);
   const counts={}; pcs.all.forEach(pc=>{ const c=(b.colourMap||{})[pc.key]; if(c) counts[c]=(counts[c]||0)+1; });
   return `<div style="margin:6px 0 18px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Choose your colours</h3></div>
     <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;margin-bottom:14px">${palettes().map(p=>`<label class="radio-card ${b.palette===p.name?'on':''}" style="flex-direction:column;gap:6px">
@@ -960,7 +979,7 @@ function colourSection(k,b){
 }
 function mountTower(){
   const el=document.getElementById('tower3d'), b=ui.builder; if(!el||!b) return; const k=Store.product(b.kitId); if(!k) return;
-  const pcs=packagePieces(k,b.picks,Store.products), hex=pc=>colourHex((b.colourMap||{})[pc.key]);
+  const pcs=packagePieces(k,b.picks,Store.products,b.swaps), hex=pc=>colourHex((b.colourMap||{})[pc.key]);
   const m=Store.product(b.marbles), mh=MARBLE_HEX[(m?.name||'').split(' ')[0].toLowerCase()]||'#F3B61F';
   TowerView.mount(el,{tracks:pcs.tracks.map(pc=>({...pc,hex:hex(pc)})),components:pcs.components.map(pc=>({...pc,hex:hex(pc)})),marbleHex:mh});
 }
@@ -991,7 +1010,7 @@ function viewCart(){
     <div class="panel">${lines.map(l=>{const pr=linePrice(l), m=Store.product(l.marbles);return `<div class="line">
         <img class="thumb" src="${imgOf(l.product)}" alt=""${l.product.type!=='kit'&&l.colour?rcAttrs(l.product,l.colour):''}>
         <div><b>${esc(l.product.name)}</b><div class="muted small">${l.palette?`🎨 ${esc(l.palette)} palette · `:l.colour?`${swatch(l.colour)}${esc(l.colour)} · `:''}${money(pr)} each</div>
-          ${l.product.type==='kit'?`<div class="muted small">${Object.entries(l.picks||{}).map(([id,q])=>`${q}× ${esc(Store.product(id)?.name||'')}`).join(', ')}${m?`, ${esc(m.name)}`:''}</div>`:''}</div>
+          ${l.product.type==='kit'?`<div class="muted small">${[...Object.entries(l.swaps||{}).filter(([idx,id])=>id!==(l.product.includes||[])[idx]?.partId).map(([,id])=>esc(Store.product(id)?.name||'')),...Object.entries(l.picks||{}).map(([id,q])=>`${q}× ${esc(Store.product(id)?.name||'')}`)].join(', ')}${m?`, ${esc(m.name)}`:''}</div>`:''}</div>
         <div class="qty"><button data-act="lineQty" data-k="${l.key}" data-d="-1">−</button><input value="${l.qty}" readonly><button data-act="lineQty" data-k="${l.key}" data-d="1">+</button></div>
         <div class="lt num"><b>${money(pr*l.qty)}</b><br><button class="btn sm danger" style="border:0;padding:2px 0" data-act="removeLine" data-k="${l.key}">Remove</button></div>
       </div>`;}).join('')}
@@ -1330,7 +1349,13 @@ function productModal(){
       <button type="button" class="btn sm" data-act="preBasicAdd">+ Add basic piece</button></div>
     <div style="margin-top:18px"><b>Always included components</b> <span class="muted small">— base, hoppers, connectors etc.</span><div style="margin-top:8px">
       ${(p.includes||[]).map((inc,i)=>`<div class="inc-row"><select data-chg="incPart" data-i="${i}">${parts.map(pp=>`<option value="${pp.id}" ${pp.id===inc.partId?'selected':''}>${esc(pp.name)}</option>`).join('')}</select>
-        <input type="number" min="1" value="${inc.qty}" data-chg="incQty" data-i="${i}"><button type="button" class="btn sm" data-act="incRemove" data-i="${i}">✕</button></div>`).join('')}
+        <input type="number" min="1" value="${inc.qty}" data-chg="incQty" data-i="${i}"><button type="button" class="btn sm" data-act="incRemove" data-i="${i}">✕</button></div>
+        ${(inc.alts||[]).length?`<div class="alt-box"><div class="small"><b>Customer picks one</b> · the first item above is included, others add or take off the price difference</div>
+          <input class="small" placeholder="Name for this choice, e.g. Top hopper" value="${esc(inc.label||'')}" data-chg="incLabel" data-i="${i}" style="margin:6px 0">
+          ${inc.alts.map((a,j)=>`<div class="inc-row" style="grid-template-columns:1fr 90px 36px"><select data-chg="incAlt" data-i="${i}" data-j="${j}">${parts.map(pp=>`<option value="${pp.id}" ${pp.id===a?'selected':''}>or ${esc(pp.name)}</option>`).join('')}</select>
+            <span class="small muted" style="align-self:center;text-align:right">${(()=>{const d=(Store.product(a)?.price||0)-(Store.product(inc.partId)?.price||0); return signedMoney(d);})()}</span>
+            <button type="button" class="btn sm" data-act="incAltRemove" data-i="${i}" data-j="${j}">✕</button></div>`).join('')}</div>`:''}
+        <button type="button" class="btn sm" style="margin:-2px 0 10px" data-act="incAltAdd" data-i="${i}">+ Let customer choose another option</button>`).join('')}
       <button type="button" class="btn sm" data-act="incAdd" ${parts.length?'':'disabled'}>+ Add item</button></div></div>`:''}
   </form></div></div>`;
 }
@@ -1710,14 +1735,15 @@ const actions = {
     const ex=cart.find(l=>l.productId===id&&l.colour===colour&&!l.picks); ex?ex.qty+=qty:cart.push({key:uid(),productId:id,qty,colour});
     saveCart(); render(); toast(`Added ${qty} × ${Store.product(id).name}`);
   },
-  openBuilder:el=>{ if(ui.builder?.kitId!==el.dataset.id){ const d=defaultMarble(Store.products); ui.builder={kitId:el.dataset.id,picks:{},marbles:d?.id||'',palette:'',colourMap:{},qty:1}; }
+  openBuilder:el=>{ if(ui.builder?.kitId!==el.dataset.id){ const d=defaultMarble(Store.products); ui.builder={kitId:el.dataset.id,picks:{},marbles:d?.id||'',swaps:{},palette:'',colourMap:{},qty:1}; }
     render(); setTimeout(()=>document.getElementById('builder')?.scrollIntoView({behavior:'smooth',block:'start'}),30); },
   closeBuilder:()=>{ ui.builder=null; render(); },
-  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.colourMap=assignColours(packagePieces(k,b.picks,Store.products).all,paletteByName(b.palette),{},true); render(); },
+  bSwap:el=>{ const b=ui.builder; b.swaps=b.swaps||{}; b.swaps[el.dataset.i]=el.dataset.id; render(); },
+  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps).all,paletteByName(b.palette),{},true); render(); },
   bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else b.picks[id]=1; render(); },
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
   bQty:el=>{ ui.builder.qty=Math.max(1,ui.builder.qty+Number(el.dataset.d)); render(); },
-  bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId); cart.push({key:uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles});
+  bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId); cart.push({key:uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles,swaps:{...(b.swaps||{})}});
     saveCart(); ui.builder=null; ui.extras='added'; render(); },
   openExtras:()=>{ ui.extras='open'; renderModal(); },
   exQty:el=>{ const i=el.closest('.ex-row').querySelector('.ex-q'); i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d)); },
@@ -1750,6 +1776,8 @@ const actions = {
   editProduct:el=>{ui.editing=JSON.parse(JSON.stringify(Store.product(el.dataset.id)));renderModal();},
   removeImage:()=>{syncEditor();ui.editing.image='';renderModal();},
   incAdd:()=>{syncEditor();const p=Store.products.find(x=>x.type==='part'&&x.tier==='component')||Store.products.find(x=>x.type==='part');ui.editing.includes.push({partId:p.id,qty:1});renderModal();},
+  incAltAdd:el=>{syncEditor();const inc=ui.editing.includes[el.dataset.i], cur=Store.product(inc.partId), alt=Store.products.find(x=>x.type==='part'&&x.id!==inc.partId&&!(inc.alts||[]).includes(x.id)&&x.tier===cur?.tier)||Store.products.find(x=>x.type==='part'&&x.id!==inc.partId); if(!alt) return; inc.alts=[...(inc.alts||[]),alt.id]; if(!inc.label&&cur) inc.label=cur.name; renderModal();},
+  incAltRemove:el=>{syncEditor();const inc=ui.editing.includes[el.dataset.i]; inc.alts.splice(el.dataset.j,1); if(!inc.alts.length){delete inc.alts; delete inc.label;} renderModal();},
   incRemove:el=>{syncEditor();ui.editing.includes.splice(el.dataset.i,1);renderModal();},
   preBasicAdd:()=>{syncEditor();const p=Store.products.find(x=>x.type==='part'&&x.tier==='basic');if(!p)return;(ui.editing.presetBasic=ui.editing.presetBasic||[]).push({partId:p.id,qty:1});renderModal();},
   preBasicRemove:el=>{syncEditor();ui.editing.presetBasic.splice(el.dataset.i,1);renderModal();},
@@ -1792,7 +1820,7 @@ document.addEventListener('change',async e=>{
   if(k==='delivery'){ const keep=document.querySelector('form[data-form=checkout]'), vals=keep?Object.fromEntries(new FormData(keep)):null;
     ui.delivery=el.value; render(); if(vals){const f=document.querySelector('form[data-form=checkout]'); for(const [n,v] of Object.entries(vals)) if(f.elements[n]&&f.elements[n].type!=='radio') f.elements[n].value=v;} }
   if(k==='bMarble'){ ui.builder.marbles=el.value; render(); }
-  if(k==='bPalette'){ ui.builder.palette=el.value; ui.builder.colourMap=assignColours(packagePieces(Store.product(ui.builder.kitId),ui.builder.picks,Store.products).all,paletteByName(el.value),{},true); render(); }
+  if(k==='bPalette'){ ui.builder.palette=el.value; ui.builder.colourMap=assignColours(packagePieces(Store.product(ui.builder.kitId),ui.builder.picks,Store.products,ui.builder.swaps).all,paletteByName(el.value),{},true); render(); }
   if(k==='orderStatus'){ Store.updateOrder(el.dataset.id,{status:el.value}); render(); toast('Status updated'); }
   if(k==='orderPaid'){ Store.updateOrder(el.dataset.id,{paid:el.value==='1'}); render(); toast(el.value==='1'?'Marked as paid':'Marked as unpaid'); }
   if(k==='orderNotes'){ Store.updateOrder(el.dataset.id,{adminNotes:el.value}); toast('Note saved'); }
@@ -1800,6 +1828,8 @@ document.addEventListener('change',async e=>{
   if(k==='preBasicPart'){ syncEditor(); ui.editing.presetBasic[el.dataset.i].partId=el.value; renderModal(); }
   if(k==='preBasicQty'){ syncEditor(); ui.editing.presetBasic[el.dataset.i].qty=Math.max(1,parseInt(el.value)||1); renderModal(); }
   if(k==='incPart'){ syncEditor(); ui.editing.includes[el.dataset.i].partId=el.value; renderModal(); }
+  if(k==='incAlt'){ syncEditor(); ui.editing.includes[el.dataset.i].alts[el.dataset.j]=el.value; renderModal(); }
+  if(k==='incLabel'){ ui.editing.includes[el.dataset.i].label=el.value; }
   if(k==='incQty'){ syncEditor(); ui.editing.includes[el.dataset.i].qty=Math.max(1,parseInt(el.value)||1); renderModal(); }
   if(k==='cost'){ Store.settings.costs[el.dataset.k]=num(el.value); Store.save(); render(); }
   if(k==='costBool'){ Store.settings.costs[el.dataset.k]=el.checked; Store.save(); render(); }
