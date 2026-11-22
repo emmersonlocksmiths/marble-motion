@@ -326,7 +326,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.68'; // bump with each update
+const APP_VERSION = '0.69'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -368,11 +368,22 @@ function packagePieces(k, picks, products, swaps){
   return {tracks,components:comps,all:[...tracks,...comps]};
 }
 // random colours from the palette, avoiding the same colour twice in a row where possible
+// shares the palette's colours out evenly (e.g. 12 pieces, 4 colours = 3 each), shuffled, avoiding two neighbours the same colour where possible.
+// Pieces that already have a colour keep it unless fresh=true (the 🎲 button).
 function assignColours(pieces, pal, existing={}, fresh=false){
-  const names=(pal?.colours||[]).map(c=>c.name), out={}; let prev=null;
-  pieces.forEach(pc=>{ let c=!fresh&&names.includes(existing[pc.key])?existing[pc.key]:null;
-    if(!c){ const opts=names.length>1?names.filter(n=>n!==prev):names; c=opts[Math.floor(Math.random()*opts.length)]||''; }
-    out[pc.key]=c; prev=c; });
+  const names=(pal?.colours||[]).map(c=>c.name), out={}; if(!names.length){ pieces.forEach(pc=>out[pc.key]=''); return out; }
+  const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+  const count=Object.fromEntries(names.map(n=>[n,0])), todo=[];
+  pieces.forEach((pc,i)=>{ const c=!fresh&&names.includes(existing[pc.key])?existing[pc.key]:null; if(c){ out[pc.key]=c; count[c]++; } else todo.push(i); });
+  const deck=[]; todo.forEach(()=>{ const min=Math.min(...names.map(n=>count[n])), c=shuffle(names.filter(n=>count[n]===min))[0]; deck.push(c); count[c]++; });
+  shuffle(deck);
+  todo.forEach(i=>{ const prev=i>0?out[pieces[i-1].key]:null, next=i<pieces.length-1?out[pieces[i+1].key]:null;
+    let j=deck.findIndex(c=>c!==prev&&c!==next); if(j<0) j=deck.findIndex(c=>c!==prev); if(j<0) j=0; out[pieces[i].key]=deck.splice(j,1)[0]; });
+  // tidy-up: swap any same-colour neighbours with another newly coloured piece where that doesn't create a new clash
+  const col=i=>out[pieces[i].key], clash=(i,c)=>(i>0&&col(i-1)===c)||(i<pieces.length-1&&col(i+1)===c);
+  for(let pass=0;pass<3;pass++) todo.forEach(i=>{ if(!(i>0&&col(i-1)===col(i))) return;
+    for(const k of shuffle([...todo])){ if(k===i||col(k)===col(i)) continue; const a=col(i), b=col(k);
+      out[pieces[i].key]=b; out[pieces[k].key]=a; if(!clash(i,b)&&!clash(k,a)) return; out[pieces[i].key]=a; out[pieces[k].key]=b; } });
   return out;
 }
 const TIERS = {basic:'Basic piece',premium:'Premium piece',component:'Tower component',marbles:'Marble pack'};
