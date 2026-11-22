@@ -314,7 +314,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.57'; // bump with each update
+const APP_VERSION = '0.58'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -759,7 +759,7 @@ function viewShop(){
   if(CLOUD&&!Cloud.ready) return `<div class="panel empty">Loading the shop…</div>`;
   const kits=Store.products.filter(p=>p.type==='kit'&&p.active), parts=Store.products.filter(p=>p.type==='part'&&p.active);
   let body;
-  if(ui.shopTab==='kits') body = kits.length?`<div class="kit-grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Packages coming soon.</div>`;
+  if(ui.shopTab==='kits') body = kits.length?`<div class="kit-grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Complete towers coming soon.</div>`;
   else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--info-bg);border-color:var(--info-line);color:var(--info-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
       <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
@@ -767,8 +767,8 @@ function viewShop(){
   return `<div class="banner"><img class="b-light" src="icons/banner.jpg?v=3" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"><img class="b-dark" src="icons/banner-dark.jpg?v=4" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Build your tower</span><span class="step"><b>2</b>Send your order</span><span class="step"><b>3</b>Enjoy your Marble Motion</span></div>
     <div class="tabs">
-      <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Packages <span class="muted small">${kits.length}</span></button>
-      <button class="${ui.shopTab==='parts'?'on':''}" data-act="shopTab" data-v="parts">Extra pieces & marbles <span class="muted small">${parts.length}</span></button>
+      <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Complete towers <span class="muted small">${kits.length}</span></button>
+      <button class="${ui.shopTab==='parts'?'on':''}" data-act="shopTab" data-v="parts">Extras <span class="muted small">${parts.length}</span></button>
     </div>${body}`;
 }
 function kitCard(k){
