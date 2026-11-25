@@ -334,7 +334,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.75'; // bump with each update
+const APP_VERSION = '0.76'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -630,7 +630,7 @@ function recolourData(img, hex, bgHex){
   const mono = wn < fgN*0.15; // white/grey/black piece: no colour to swap, so its own colour is kept
   if(!mono&&wn){ S0/=wn; L0/=wn; changed=true;
     const [Ht,St,Lt]=rgb2hsl(...hexRgb(hex)), grey=St<.12;
-  if(!grey&&hd(Ht)<18&&Math.abs(Lt-L0)<.18&&Math.abs(St-S0)<.35) return null; // photo is already this colour (e.g. a red piece and "Red", but not pink), so show the real photo untouched
+  if(!grey&&hd(Ht)<7&&Math.abs(Lt-L0)<.15&&Math.abs(St-S0)<.3) return null; // photo is already this colour (e.g. a red piece and "Red", but not pink), so show the real photo untouched
     for(let p=0,i=0;p<N;p++,i+=4){ const w=wt[p]; if(!w) continue;
       const l=hsl[p*3+2], sa=hsl[p*3+1];
       const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85?1.1:Lt<.2?.6:.9)));
