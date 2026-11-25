@@ -103,6 +103,9 @@ main{padding:22px 0 60px}
 .row{display:flex;gap:8px;align-items:center}
 .pop-bg{position:fixed;inset:0;z-index:70;background:rgba(15,18,25,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:popfade .15s ease-out}
 .pop{background:var(--card);color:var(--ink);border-radius:20px;padding:22px 20px 14px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;animation:popin .18s ease-out}
+.ln-edit{cursor:pointer}
+b.ln-edit:hover{color:var(--accent)}
+.ln-editbtn{margin-left:6px;font-weight:700}
 .conn-note{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;text-align:left;margin-bottom:14px;line-height:1.45}
 .card.flash{box-shadow:0 0 0 3px var(--accent),var(--shadow);transition:box-shadow .3s}
 .pop-tick{width:48px;height:48px;border-radius:50%;background:var(--ok-bg,#E6F4EC);color:var(--ok,#22794F);display:grid;place-items:center;font-size:26px;font-weight:800;margin-bottom:10px}
@@ -389,7 +392,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.86'; // bump with each update
+const APP_VERSION = '0.87'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1092,7 +1095,7 @@ function builderPanel(){
     let deck=[]; need.forEach(p=>{ if(!deck.length) deck=[...names].sort(()=>Math.random()-.5); b.preview[p.id]=deck.pop()||''; }); }
   const left=num(k.choosePremium)-picked('premium');
   return `<div class="panel" id="builder" style="margin-top:20px;border:2px solid var(--accent)">
-    <div class="row" style="margin-bottom:4px"><h2 style="margin:0">Build your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">✕ Close</button></div>
+    <div class="row" style="margin-bottom:4px"><h2 style="margin:0">${b.editKey?'Edit':'Build'} your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">${b.editKey?'Cancel':'✕ Close'}</button></div>
     <p class="muted small" style="margin-top:0">${esc(k.description)}</p>
     ${k.colourChoice?`<div class="b-colours">${colourSection(k,b)}</div>`:''}
     <div class="builder-grid"><div class="b-left">
@@ -1118,7 +1121,7 @@ function builderPanel(){
     <div class="b-footer">
       <div class="qty"><button data-act="bQty" data-d="-1">−</button><input value="${b.qty}" readonly><button data-act="bQty" data-d="1">+</button></div>
       <div class="spacer"></div><span class="price">${money(unit*b.qty)}</span>
-      <button class="btn primary" data-act="bAdd" ${complete?'':'disabled'}>${complete?'Add package to cart':left>0?`Choose ${left} more premium track${left===1?'':'s'}`:k.colourChoice&&!b.palette?'Choose a colour palette':'Finish choosing pieces'}</button></div>
+      <button class="btn primary" data-act="bAdd" ${complete?'':'disabled'}>${complete?(b.editKey?'Update package':'Add package to cart'):left>0?`Choose ${left} more premium track${left===1?'':'s'}`:k.colourChoice&&!b.palette?'Choose a colour palette':'Finish choosing pieces'}</button></div>
     </div></div>
   </div>`;
 }
@@ -1159,8 +1162,8 @@ function viewCart(){
   const t=totals(ui.delivery);
   return `<h1 style="margin:0 0 14px">Your order</h1><div class="two">
     <div class="panel">${lines.map(l=>{const pr=linePrice(l), m=Store.product(l.marbles);return `<div class="line">
-        <img class="thumb" src="${imgOf(l.product)}" alt=""${l.product.type!=='kit'&&l.colour?rcAttrs(l.product,l.colour):''}>
-        <div class="ln-info"><b>${esc(l.product.name)}</b><div class="muted small">${l.palette?`🎨 ${esc(l.palette)} palette · `:l.colour?`${swatch(l.colour)}${esc(l.colour)} · `:''}${money(pr)} each</div>
+        ${(()=>{ const ed=l.product.type==='kit'||l.product.colourChoice; return `<img class="thumb${ed?' ln-edit':''}" src="${imgOf(l.product)}" alt=""${l.product.type!=='kit'&&l.colour?rcAttrs(l.product,l.colour):''}${ed?` data-act="editLine" data-k="${l.key}"`:''}>
+        <div class="ln-info"><b${ed?` class="ln-edit" data-act="editLine" data-k="${l.key}"`:''}>${esc(l.product.name)}</b>${ed?` <button class="linkbtn small ln-editbtn" data-act="editLine" data-k="${l.key}">✏️ ${l.product.type==='kit'?'Edit':'Change colour'}</button>`:''}`; })()}<div class="muted small">${l.palette?`🎨 ${esc(l.palette)} palette · `:l.colour?`${swatch(l.colour)}${esc(l.colour)} · `:''}${money(pr)} each</div>
           ${l.product.type==='kit'?`<div class="muted small">${[...Object.entries(l.swaps||{}).filter(([idx,id])=>id!==(l.product.includes||[])[idx]?.partId).map(([,id])=>esc(Store.product(id)?.name||'')),...Object.entries(l.picks||{}).map(([id,q])=>`${q}× ${esc(Store.product(id)?.name||'')}`)].join(', ')}${m?`, ${esc(m.name)}`:''}</div>`:''}</div>
         <div class="qty"><button data-act="lineQty" data-k="${l.key}" data-d="-1">−</button><input value="${l.qty}" readonly><button data-act="lineQty" data-k="${l.key}" data-d="1">+</button></div>
         <div class="lt num"><b>${money(pr*l.qty)}</b><button class="btn sm danger ln-rm" data-act="removeLine" data-k="${l.key}" aria-label="Remove ${esc(l.product.name)}">Remove</button></div>
@@ -1834,6 +1837,14 @@ function renderModal(){ const m=$('#modal-root'), was=!!m.firstElementChild; _re
 function _renderModal(){
   const m=$('#modal-root'), r=route();
   if(ui.showTerms){ m.innerHTML=`<div class="modal-bg" data-act="closeTerms"><div class="modal" data-stop style="max-width:760px"><div class="modal-head"><b>Terms &amp; Conditions</b><div class="spacer"></div><button class="btn primary sm" data-act="closeTerms">Close</button></div>${termsHTML()}</div></div>`; return; }
+  if(r==='cart'&&ui.lineEdit){ const e=ui.lineEdit, l=findCart(e.key), p=l&&Store.product(l.productId);
+    if(p){ m.innerHTML=`<div class="pop-bg" data-act="lineEditClose"><div class="pop" data-stop role="dialog" aria-label="Change colour">
+      <img src="${imgOf(p)}" alt="" style="width:150px;height:150px;object-fit:contain;background:var(--imgbg);border-radius:14px;margin-bottom:10px"${rcAttrs(p,e.colour)}>
+      <b style="font-size:18px">${esc(p.name)}</b><div class="muted small" style="margin:2px 0 12px">Pick a new colour</div>
+      <div class="dots" style="justify-content:center;margin-bottom:6px">${extraColours().map(c=>`<button type="button" class="dot${c===e.colour?' on':''}" style="background:${colourHex(c)}" title="${esc(c)}" aria-label="${esc(c)}" data-act="lineEditDot" data-c="${esc(c)}"></button>`).join('')}</div>
+      <div class="dot-name" style="margin-bottom:14px">${esc(e.colour||'')}</div>
+      <button class="btn primary" style="width:100%" data-act="lineEditSave">Save</button>
+      <button class="linkbtn small" style="margin-top:12px" data-act="lineEditClose">Cancel</button></div></div>`; return; } }
   if(r==='shop'&&ui.connTip){ const t=ui.connTip, conn=connectorProduct();
     m.innerHTML=`<div class="pop-bg" data-act="connClose"><div class="pop" data-stop role="dialog" aria-label="Added to cart">
       <div class="pop-tick" aria-hidden="true">✓</div><b style="font-size:18px">Added to your cart</b>
@@ -1894,7 +1905,7 @@ const actions = {
   connNever:()=>{ ui.connTip=null; ui.noConnTip=true; renderModal(); },
   openBuilder:el=>{ if(ui.builder?.kitId!==el.dataset.id){ const d=defaultMarble(Store.products); ui.builder={kitId:el.dataset.id,picks:{},marbles:d?.id||'',swaps:{},palette:'',colourMap:{},qty:1}; }
     ui.anim='builder'; render(); setTimeout(()=>{ const bd=document.getElementById('builder'); if(!bd) return; const head=document.querySelector('header.top')?.offsetHeight||0; window.scrollTo({top:Math.max(0,bd.getBoundingClientRect().top+scrollY-head-12),behavior:'smooth'}); },30); },
-  closeBuilder:()=>{ const bd=$('#builder'); const go=()=>{ ui.builder=null; render(); }; if(bd&&animOK()){ bd.classList.add('anim-up'); setTimeout(go,180); } else go(); },
+  closeBuilder:()=>{ if(ui.builder?.editKey){ ui.builder=null; location.hash='#cart'; return; } const bd=$('#builder'); const go=()=>{ ui.builder=null; render(); }; if(bd&&animOK()){ bd.classList.add('anim-up'); setTimeout(go,180); } else go(); },
   bSwap:el=>{ const b=ui.builder, k=Store.product(b.kitId), inc=(k.includes||[])[el.dataset.i]; b.swaps=b.swaps||{}; const cur=b.swaps[el.dataset.i]||inc?.partId, col=(b.colourMap||{})['c-'+cur+'-0'];
     b.swaps[el.dataset.i]=el.dataset.id; if(col) b.colourMap={...b.colourMap,['c-'+el.dataset.id+'-0']:col}; render(); },
   bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); b.tileOrder=null; ui.anim='tiles'; render(); },
@@ -1902,14 +1913,23 @@ const actions = {
   bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else { b.picks[id]=1; if(b.palette&&b.preview&&b.preview[id]) b.colourMap={...(b.colourMap||{}),['p-'+id+'-0']:b.preview[id]}; } render(); },
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
   bQty:el=>{ ui.builder.qty=Math.max(1,ui.builder.qty+Number(el.dataset.d)); render(); },
-  bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId); cart.push({key:uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles,swaps:{...(b.swaps||{})},...(b.rbasic?{rbasic:[...b.rbasic]}:{})});
-    saveCart(); ui.builder=null; ui.bump=true; ui.added={name:k.name,qty:b.qty,price:(k.price+kitExtra(k,b,Store.products))*b.qty}; render();
+  bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId), line={key:b.editKey||uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles,swaps:{...(b.swaps||{})},...(b.rbasic?{rbasic:[...b.rbasic]}:{}),...(b.tileOrder?{tileOrder:[...b.tileOrder]}:{})};
+    if(b.editKey){ const i=cart.findIndex(x=>x.key===b.editKey); if(i>=0) cart[i]=line; else cart.push(line); saveCart(); ui.builder=null; location.hash='#cart'; setTimeout(()=>toast('Package updated'),60); return; }
+    cart.push(line); saveCart(); ui.builder=null; ui.bump=true; ui.added={name:k.name,qty:b.qty,price:(k.price+kitExtra(k,b,Store.products))*b.qty}; render();
     const t=document.querySelector('.shop-tabs'); if(t) window.scrollTo({top:Math.max(0,t.getBoundingClientRect().top+scrollY-90),behavior:'smooth'}); },
   openExtras:()=>{ ui.extras='open'; renderModal(); },
   exQty:el=>{ const i=el.closest('.ex-row').querySelector('.ex-q'); i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d)); },
   exAdd:el=>{ const r=el.closest('.ex-row'), id=r.dataset.pid, qty=Math.max(1,parseInt(r.querySelector('.ex-q').value)||1), colour=r.querySelector('.ex-colour')?.value||'';
     const ex=cart.find(l=>l.productId===id&&l.colour===colour&&!l.picks); ex?ex.qty+=qty:cart.push({key:uid(),productId:id,qty,colour}); saveCart();
     r.querySelector('.ex-q').value=1; render(); toast(`Added ${qty} × ${Store.product(id).name}`); },
+  editLine:el=>{ const l=findCart(el.dataset.k); if(!l) return; const p=Store.product(l.productId); if(!p) return;
+    if(p.type==='kit'){ ui.pendingBuilder={kitId:p.id,editKey:l.key,picks:{...(l.picks||{})},marbles:l.marbles||'',swaps:{...(l.swaps||{})},...(l.rbasic?{rbasic:[...l.rbasic]}:{}),...(l.tileOrder?{tileOrder:[...l.tileOrder]}:{}),palette:l.palette||'',colourMap:{...(l.colourMap||{})},qty:l.qty};
+      ui.shopTab='kits'; location.hash='#shop'; return; }
+    if(p.colourChoice){ ui.lineEdit={key:l.key,colour:l.colour}; renderModal(); } },
+  lineEditDot:el=>{ ui.lineEdit.colour=el.dataset.c; renderModal(); },
+  lineEditSave:()=>{ const e=ui.lineEdit, l=findCart(e.key); if(l&&e.colour!==l.colour){ const same=cart.find(x=>x!==l&&x.productId===l.productId&&x.colour===e.colour&&!x.picks);
+      if(same){ same.qty+=l.qty; cart=cart.filter(x=>x!==l); } else l.colour=e.colour; saveCart(); toast('Colour updated'); } ui.lineEdit=null; render(); },
+  lineEditClose:()=>{ ui.lineEdit=null; renderModal(); },
   lineQty:el=>{const c=findCart(el.dataset.k); if(c){c.qty=Math.max(1,c.qty+Number(el.dataset.d)); saveCart(); render();}},
   removeLine:el=>{ const go=()=>{ cart=cart.filter(x=>x.key!==el.dataset.k); saveCart(); render(); }, ln=el.closest('.line'); if(ln&&animOK()){ ln.classList.add('leaving'); setTimeout(go,200); } else go(); },
   printInvoice:el=>printInvoice(el.dataset.id),
@@ -2028,7 +2048,9 @@ document.addEventListener('submit',e=>{
   if(k==='product'){ syncEditor(); const p=ui.editing; if(!p.name.trim()){toast('Give it a name');return;} delete p._new; Store.upsertProduct(p); ui.editing=null; render(); toast(CLOUD?'Saving…':'Saved'); }
   if(k==='settings'){ const d=Object.fromEntries(new FormData(f)); d.gstRegistered=!!d.gstRegistered; d.postEnabled=!!d.postEnabled; d.postageFlat=num(d.postageFlat); d.freePostageOver=num(d.freePostageOver); Store.saveSettings(d); render(); toast('Settings saved'); }
 });
-window.addEventListener('hashchange',()=>{ui.anim='route';ui.editing=null;ui.viewOrder=null;ui.builder=null;ui.extras=null;render();window.scrollTo(0,0);});
+window.addEventListener('hashchange',()=>{ui.anim='route';ui.editing=null;ui.viewOrder=null;ui.builder=ui.pendingBuilder||null;ui.pendingBuilder=null;ui.extras=null;ui.lineEdit=null;
+  if(ui.builder) ui.anim='builder'; render(); const bd=ui.builder&&document.getElementById('builder');
+  if(bd){ const head=document.querySelector('header.top')?.offsetHeight||0; window.scrollTo(0,Math.max(0,bd.getBoundingClientRect().top+scrollY-head-12)); } else window.scrollTo(0,0);});
 window.addEventListener('storage',e=>{
   if(CLOUD||e.key!==LS_KEY) return; Store.load();
   if(Store.orders.length>ui.seenOrders&&ui.admin) toast('🔔 New order received!');
