@@ -295,6 +295,7 @@ body{overscroll-behavior-y:none}
 .admin-nav{display:none}
 .admin-tabs .tic{width:18px;height:18px;vertical-align:-4px;margin-right:6px}
 table.t td.num{white-space:nowrap}
+table.t th.num{text-align:right}
 .o-card{display:block;padding:12px 4px;border-bottom:1px solid var(--line);cursor:pointer}
 .o-card:last-child{border-bottom:0}
 .o-card .row{gap:8px}
@@ -388,7 +389,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.85'; // bump with each update
+const APP_VERSION = '0.86'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
