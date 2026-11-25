@@ -334,7 +334,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.74'; // bump with each update
+const APP_VERSION = '0.75'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -633,10 +633,16 @@ function recolourData(img, hex, bgHex){
   if(!grey&&hd(Ht)<18&&Math.abs(Lt-L0)<.18&&Math.abs(St-S0)<.35) return null; // photo is already this colour (e.g. a red piece and "Red", but not pink), so show the real photo untouched
     for(let p=0,i=0;p<N;p++,i+=4){ const w=wt[p]; if(!w) continue;
       const l=hsl[p*3+2], sa=hsl[p*3+1];
-      const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85||Lt<.2?.6:.9)));
+      const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85?1.1:Lt<.2?.6:.9)));
       const ns=grey?St:Math.max(0,Math.min(1,sa*St/Math.max(.05,S0)));
       const [r,gg,b]=hsl2rgb(Ht,ns,nl);
       d[i]=d[i]*(1-w)+r*w; d[i+1]=d[i+1]*(1-w)+gg*w; d[i+2]=d[i+2]*(1-w)+b*w; } }
+  // white or very pale colours: add a soft grey outline so the piece stands out on the white photo background
+  if(rgb2hsl(...hexRgb(hex))[2]>.8){ const R=Math.max(2,Math.round(W/110)), edge=new Uint8Array(N); let ring=[];
+    for(let p=0;p<N;p++){ if(!fg[p]) continue; const x=p%W; if((x>0&&!fg[p-1])||(x<W-1&&!fg[p+1])||(p>=W&&!fg[p-W])||(p<N-W&&!fg[p+W])){ edge[p]=1; ring.push(p); } }
+    for(let k=1;k<R;k++){ const nx=[]; for(const p of ring){ const x=p%W; for(const q of [x>0?p-1:-1,x<W-1?p+1:-1,p-W,p+W]) if(q>=0&&q<N&&fg[q]&&!edge[q]){ edge[q]=k+1; nx.push(q); } } ring=nx; }
+    for(let p=0,i=0;p<N;p++,i+=4){ const e=edge[p]; if(!e) continue; const a=e<=Math.ceil(R/2)?.9:.9*(1-(e-Math.ceil(R/2))/(R-Math.ceil(R/2)+1)); d[i]=d[i]*(1-a)+105*a; d[i+1]=d[i+1]*(1-a)+112*a; d[i+2]=d[i+2]*(1-a)+122*a; }
+    changed=true; }
   }
   // 3. background swap to the theme's box colour
   // (scales the background and its shadows together, so shadows stay soft)
