@@ -78,7 +78,7 @@ header.top .wrap{display:flex;align-items:center;gap:12px;height:62px}
 .pill{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;font-weight:800}
 main{padding:22px 0 60px}
 .banner{margin:0 0 14px;border-radius:24px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:#FBF7F0}
-.banner img{display:block;width:100%;height:clamp(220px,30vw,330px);object-fit:cover}
+.banner img{display:block;width:100%;height:clamp(200px,16vw,230px);object-fit:cover}
 [data-theme=dark] .banner{background:#021A44}
 .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow);margin-bottom:22px;overflow:hidden}
 .hero h1{font-size:34px;line-height:1.08;margin:0 0 10px;letter-spacing:-.02em}
@@ -162,12 +162,14 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .pal-card .pal-name{flex:1;min-width:0}
 .pal-sw{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px;max-width:62%}
 .pal-sw span{width:20px;height:20px;border-radius:50%;border:1px solid rgba(0,0,0,.15)}
+.shuf{display:flex;gap:8px}
+.shuf .btn{white-space:nowrap}
 .pc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
 .pc-tile{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:12px}
 .pc-tile img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:var(--imgbg)}
 .pc-tile .pc-name{font-weight:700;padding:6px 8px 0;line-height:1.25}
 .pc-tile .pc-col{color:var(--muted);padding:2px 8px 8px}
-@media (max-width:760px){ .brand .logo-img{height:34px!important} .pal-grid{grid-template-columns:1fr} .pc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:760px){ .shuf{width:100%} .shuf .btn{flex:1;padding:10px 6px;font-size:14px} .brand .logo-img{height:34px!important} .pal-grid{grid-template-columns:1fr} .pc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 .alt-box{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:-2px 0 8px;background:var(--soft)}
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px}
 .switch input{width:18px;height:18px;accent-color:var(--accent)}
@@ -327,7 +329,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.71'; // bump with each update
+const APP_VERSION = '0.72'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -388,8 +390,8 @@ function assignColours(pieces, pal, existing={}, fresh=false){
       out[pieces[i].key]=b; out[pieces[k].key]=a; if(!clash(i,b)&&!clash(k,a)) return; out[pieces[i].key]=a; out[pieces[k].key]=b; } });
   return out;
 }
-const TIERS = {basic:'Basic piece',premium:'Premium piece',component:'Tower component',marbles:'Marble pack'};
-const TIER_PLURAL = {basic:'Basic pieces',premium:'Premium pieces',component:'Tower components',marbles:'Marble packs'};
+const TIERS = {basic:'Basic track',premium:'Premium track',component:'Tower component',marbles:'Marble pack'};
+const TIER_PLURAL = {basic:'Basic tracks',premium:'Premium tracks',component:'Tower components',marbles:'Marble packs'};
 const TIER_ORDER = ['basic','premium','component','marbles'];
 
 /* ---------- costing rules ---------- */
@@ -419,7 +421,7 @@ function partBreakdown(p,c){
 }
 const marblePacks = products => products.filter(p=>p.type==='part'&&p.tier==='marbles'&&p.active);
 const defaultMarble = products => { const m=marblePacks(products); return m.length?m.reduce((a,b)=>a.price<=b.price?a:b):null; };
-// random basic pieces: a package can include N different basic pieces picked at random (customer can reshuffle)
+// random basic tracks: a package can include N different basic tracks picked at random (customer can reshuffle)
 const randomPool = (k, products, picks) => { const skip=new Set([...(k.presetBasic||[]).map(i=>i.partId),...Object.keys(picks||{})]);
   return products.filter(p=>p.type==='part'&&p.tier==='basic'&&p.active&&!skip.has(p.id)); };
 function randomBasics(k, products, picks){ const pool=randomPool(k,products,picks).map(p=>p.id);
@@ -481,13 +483,13 @@ function checkOrder(o){
       const picks=(i.sel&&i.sel.picks)||{}, mid=i.sel&&i.sel.marbles, sw=(i.sel&&i.sel.swaps)||{};
       exp+=marbleUpgrade(p,mid,P)+swapUpgrade(p,sw,P);
       const rb=(i.sel&&i.sel.rbasic)||[];
-      if(num(p.randomBasic)&&i.sel&&i.sel.rbasic&&(rb.length!==Math.min(num(p.randomBasic),rb.length+randomPool(p,P,picks).filter(x=>!rb.includes(x.id)).length)||new Set(rb).size!==rb.length)) issues.push({bad:true,msg:`${esc(p.name)}: has ${rb.length} random basic pieces, should be ${num(p.randomBasic)}`});
+      if(num(p.randomBasic)&&i.sel&&i.sel.rbasic&&(rb.length!==Math.min(num(p.randomBasic),rb.length+randomPool(p,P,picks).filter(x=>!rb.includes(x.id)).length)||new Set(rb).size!==rb.length)) issues.push({bad:true,msg:`${esc(p.name)}: has ${rb.length} random basic tracks, should be ${num(p.randomBasic)}`});
       Object.entries(sw).forEach(([idx,id])=>{ const inc=(p.includes||[])[idx]; if(!inc||!incOptions(inc).includes(id)) issues.push({msg:`${esc(p.name)}: has a component choice that's no longer offered`}); });
       ['basic','premium'].forEach(t=>{ const need=num(t==='basic'?p.chooseBasic:p.choosePremium);
         const ids=Object.entries(picks).filter(([id,q])=>q>0&&P.find(x=>x.id===id)?.tier===t);
         const got=ids.reduce((s,[,q])=>s+Number(q),0);
         if(got!==need) issues.push({bad:true,msg:`${esc(p.name)}: has ${got} ${t} pieces chosen, should be ${need}`});
-        if(t==='premium'&&ids.some(([,q])=>q>1)) issues.push({bad:true,msg:`${esc(p.name)}: the same premium piece was chosen more than once`}); });
+        if(t==='premium'&&ids.some(([,q])=>q>1)) issues.push({bad:true,msg:`${esc(p.name)}: the same premium track was chosen more than once`}); });
       if(Object.keys(picks).some(id=>!P.find(x=>x.id===id))) issues.push({msg:`${esc(p.name)}: includes a chosen piece that's no longer in the shop`});
       if(p.marbleChoice&&!P.find(x=>x.id===mid)) issues.push({msg:`${esc(p.name)}: marble pack not recognised`});
     }
@@ -694,7 +696,7 @@ function seed(){
     P('m-blue','marbles','Blue marbles (10 pack)',0,0,'Ten blue marbles sized for Marble Motion.',{boughtIn:11.53,price:17.95}),
     P('m-red','marbles','Red marbles (10 pack)',0,0,'Ten red marbles sized for Marble Motion.',{boughtIn:18.12,price:24.95}),
   ];
-  const standard = {id:'k-standard',type:'kit',name:'Standard Package',price:0,description:'7 basic pieces chosen for you, plus 3 premium pieces of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.',
+  const standard = {id:'k-standard',type:'kit',name:'Standard Package',price:0,description:'7 basic tracks chosen for you, plus 3 premium tracks of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.',
     image:'',active:true,colourChoice:true,chooseBasic:0,choosePremium:3,marbleChoice:true,presetBasic:STANDARD_PRESET.map(id=>({partId:id,qty:1})),
     includes:[{partId:'c-base',qty:1},{partId:'c-tophopper',qty:1},{partId:'c-endhopper',qty:1},{partId:'c-connectors',qty:2}]};
   const products=[standard,...parts];
@@ -822,7 +824,7 @@ const Store = {
     if(!this.data.settings.palettes) this.data.settings.palettes=JSON.parse(JSON.stringify(DEFAULT_PALETTES));
     this.data.products.forEach(k=>{ if(k.type!=='kit'||k.presetBasic) return;
       k.presetBasic=[]; if(k.id==='k-standard'){ k.presetBasic=STANDARD_PRESET.map(id=>({partId:id,qty:1})); k.chooseBasic=0;
-        k.description='7 basic pieces chosen for you, plus 3 premium pieces of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.'; } });
+        k.description='7 basic tracks chosen for you, plus 3 premium tracks of your choice. Base, top funnel, end hopper, 18 connectors and a pack of 10 marbles are included.'; } });
     this.save(); },
   // remembers when each price was last changed, so the order check can tell a price change from a tampered order
   stampPrices(){ const now=Date.now(), prev=this._prices; if(prev) this.data.products.forEach(p=>{ if(p.id in prev&&prev[p.id]!==p.price) p.priceChangedAt=now; });
@@ -915,7 +917,7 @@ function viewShop(){
       <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
       <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
-  return `<div class="banner"><img class="b-light" src="icons/banner.jpg?v=3" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"><img class="b-dark" src="icons/banner-dark.jpg?v=4" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"></div>
+  return `<div class="banner"><img class="b-light" src="icons/banner.jpg?v=3" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"><img class="b-dark" src="icons/banner-dark.jpg?v=5" alt="Marble Motion: designed for motion, built for fun." width="3600" height="697"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Build your tower</span><span class="step"><b>2</b>Send your order</span><span class="step"><b>3</b>Enjoy your Marble Motion</span></div>
     <div class="tabs">
       <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Complete towers <span class="muted small">${kits.length}</span></button>
@@ -925,9 +927,9 @@ function viewShop(){
 function kitCard(k){
   const nm=id=>esc(Store.product(id)?.name||'');
   const basics=(k.presetBasic||[]).map(i=>`${i.qty>1?i.qty+' × ':''}${nm(i.partId)}`);
-  const inc=[basics.length&&`<li><b>${(k.presetBasic||[]).reduce((s,i)=>s+i.qty,0)} basic pieces:</b> ${basics.join(', ')}</li>`,
-    num(k.randomBasic)&&`<li><b>${k.randomBasic} basic pieces</b> picked at random for you (shuffle until you like them)</li>`,
-    num(k.chooseBasic)&&`<li><b>${k.chooseBasic} basic pieces</b> of your choice</li>`, num(k.choosePremium)&&`<li><b>${k.choosePremium} premium pieces</b> of your choice</li>`,
+  const inc=[basics.length&&`<li><b>${(k.presetBasic||[]).reduce((s,i)=>s+i.qty,0)} basic tracks:</b> ${basics.join(', ')}</li>`,
+    num(k.randomBasic)&&`<li><b>${k.randomBasic} basic tracks</b> picked at random for you (shuffle until you like them)</li>`,
+    num(k.chooseBasic)&&`<li><b>${k.chooseBasic} basic tracks</b> of your choice</li>`, num(k.choosePremium)&&`<li><b>${k.choosePremium} premium tracks</b> of your choice</li>`,
     ...(k.includes||[]).map(i=>{const o=incOptions(i); return `<li>${i.qty>1?i.qty+' × ':''}${o.length>1?`${esc(i.label||'')}${i.label?': ':''}${o.map(nm).join(' or ')} <span class="muted">(your choice)</span>`:nm(i.partId)}</li>`;}), k.marbleChoice&&`<li>1 pack of 10 marbles, your colour</li>`].filter(Boolean).join('');
   const on=ui.builder?.kitId===k.id;
   return `<div class="card kit-card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(k)}" alt="${esc(k.name)}"><div class="body">
@@ -950,7 +952,7 @@ function builderPanel(){
   const section=(t,n)=>{ if(!n) return ''; const ps=Store.products.filter(p=>p.type==='part'&&p.tier===t&&p.active), have=picked(t);
     return `<div style="margin-bottom:18px"><div class="row" style="margin-bottom:8px"><h3 style="margin:0">Choose your ${n} ${TIER_PLURAL[t].toLowerCase()}</h3><div class="spacer"></div>
       <span class="chip ${have===n?'paid-yes':'paid-no'}">${have} of ${n} chosen</span></div>
-      <div class="muted small" style="margin:-4px 0 10px">Pick ${n} different pieces.</div>
+      <div class="muted small" style="margin:-4px 0 10px">Pick ${n} different tracks.</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${ps.map(p=>{const q=b.picks[p.id]||0;return `<div class="card" style="${q?'border:2px solid var(--accent)':''}">
         <img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${q&&b.palette?rcAttrs(p,(b.colourMap||{})['p-'+p.id+'-0']):''}><div class="body" style="padding:10px;gap:6px"><b class="small">${esc(p.name)}</b>
         <button class="btn sm ${q?'primary':''}" data-act="bToggle" data-id="${p.id}" ${!q&&have>=n?'disabled':''}>${q?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`; };
@@ -975,8 +977,8 @@ function builderPanel(){
         return `<div class="card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${on&&b.palette?rcAttrs(p,(b.colourMap||{})['c-'+id+'-0']):''}><div class="body" style="padding:10px;gap:6px">
           <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${esc(p.name)}</b><b class="small">${signedMoney(up)}</b></div>
           <button class="btn sm ${on?'primary':''}" data-act="bSwap" data-i="${idx}" data-id="${id}">${on?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`;}).join('')}
-    ${num(k.randomBasic)?`<div style="margin-bottom:18px"><div class="row" style="margin-bottom:8px;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><h3 style="margin:0">Your ${b.rbasic.length} basic pieces</h3><div class="muted small">Picked at random. Not keen? Shuffle for a different set.</div></div>
-      <button class="btn" data-act="bShufflePieces">🎲 Shuffle pieces</button></div>
+    ${num(k.randomBasic)?`<div style="margin-bottom:18px"><div class="row" style="margin-bottom:8px;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><h3 style="margin:0">Your ${b.rbasic.length} basic tracks</h3><div class="muted small">Picked at random. Not keen? Shuffle for a different set, or shuffle the colours.</div></div>
+      <div class="shuf"><button class="btn" data-act="bShufflePieces">🎲 Shuffle tracks</button>${k.colourChoice?`<button class="btn primary" data-act="bShuffle">🎨 Shuffle colours</button>`:''}</div></div>
       <div class="pc-grid">${b.rbasic.map(id=>{const p=Store.product(id);return p?`<div class="pc-tile"><img src="${imgOf(p)}" alt=""${b.palette?rcAttrs(p,(b.colourMap||{})['r-'+id+'-0']):''}><div class="pc-name" style="padding-bottom:8px">${esc(p.name)}</div></div>`:'';}).join('')}</div></div>`:''}
     ${section('premium',num(k.choosePremium))}${section('basic',num(k.chooseBasic))}
     <div class="form-grid" style="margin-bottom:16px">
@@ -988,7 +990,7 @@ function builderPanel(){
     <div class="b-footer">
       <div class="qty"><button data-act="bQty" data-d="-1">−</button><input value="${b.qty}" readonly><button data-act="bQty" data-d="1">+</button></div>
       <div class="spacer"></div><span class="price">${money(unit*b.qty)}</span>
-      <button class="btn primary" data-act="bAdd" ${complete?'':'disabled'}>${complete?'Add package to cart':left>0?`Choose ${left} more premium piece${left===1?'':'s'}`:k.colourChoice&&!b.palette?'Choose a colour palette':'Finish choosing pieces'}</button></div>
+      <button class="btn primary" data-act="bAdd" ${complete?'':'disabled'}>${complete?'Add package to cart':left>0?`Choose ${left} more premium track${left===1?'':'s'}`:k.colourChoice&&!b.palette?'Choose a colour palette':'Finish choosing pieces'}</button></div>
     </div></div>
   </div>`;
 }
@@ -1000,10 +1002,10 @@ function colourSection(k,b){
       <input type="radio" name="bpal" value="${esc(p.name)}" ${b.palette===p.name?'checked':''} data-chg="bPalette"><b class="pal-name">${esc(p.name)}</b>
       <span class="pal-sw">${p.colours.map(c=>`<span title="${esc(c.name)}" style="background:${c.hex}"></span>`).join('')}</span></label>`).join('')}</div>
     ${pal?`<div class="row" style="margin:4px 0 10px;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:150px"><b>Your tower's colours</b><div class="muted small">${pcs.all.length} pieces in ${Object.keys(counts).length} colour${Object.keys(counts).length===1?'':'s'}</div></div>
-        <button class="btn primary" data-act="bShuffle">🎲 Generate colours</button></div>
+        ${num(k.randomBasic)?'':`<button class="btn primary" data-act="bShuffle">🎨 Shuffle colours</button>`}</div>
       <div class="pc-grid">${pcs.all.map(pc=>{const c=(b.colourMap||{})[pc.key], p=Store.product(pc.partId);return `<div class="pc-tile"><img src="${imgOf(p)}" alt=""${rcAttrs(p,c)}>
         <div class="pc-name">${esc(pc.name)}</div><div class="pc-col">${swatch(c)}${esc(c||'')}</div></div>`;}).join('')}</div>`
-    :`<div class="muted small">Pick a palette and we'll colour your tower. Not keen on the mix? Hit “Generate colours” for a new one.</div>`}
+    :`<div class="muted small">Pick a palette and we'll colour your tower. Not keen on the mix? Hit “Shuffle colours” for a new one.</div>`}
   </div>`;
 }
 function extrasModal(){
@@ -1358,19 +1360,19 @@ function productModal(){
           <label class="f">Print time (hours)<input type="number" step="any" min="0" name="printHours" value="${+num(p.printHours).toFixed(2)}"></label>
 `)}
       <label class="f full">Description<textarea name="description" rows="2">${esc(p.description)}</textarea></label>
-      ${kit?`<label class="f">Premium pieces customer chooses<input type="number" min="0" step="1" name="choosePremium" value="${num(p.choosePremium)}"></label>
-        <label class="f">Random basic pieces <span class="hint">different pieces picked at random for each customer, who can reshuffle (${Store.products.filter(x=>x.type==='part'&&x.tier==='basic'&&x.active).length} basic pieces live)</span><input type="number" min="0" step="1" name="randomBasic" value="${num(p.randomBasic)}"></label>
-        <label class="f">Basic pieces customer chooses <span class="hint">usually 0</span><input type="number" min="0" step="1" name="chooseBasic" value="${num(p.chooseBasic)}"></label>
+      ${kit?`<label class="f">Premium tracks customer chooses<input type="number" min="0" step="1" name="choosePremium" value="${num(p.choosePremium)}"></label>
+        <label class="f">Random basic tracks <span class="hint">different tracks picked at random for each customer, who can reshuffle (${Store.products.filter(x=>x.type==='part'&&x.tier==='basic'&&x.active).length} basic tracks live)</span><input type="number" min="0" step="1" name="randomBasic" value="${num(p.randomBasic)}"></label>
+        <label class="f">Basic tracks customer chooses <span class="hint">usually 0</span><input type="number" min="0" step="1" name="chooseBasic" value="${num(p.chooseBasic)}"></label>
         <label class="switch"><input type="checkbox" name="marbleChoice" ${p.marbleChoice?'checked':''}> Includes a marble pack (customer picks colour)</label>`:''}
       ${p.tier==='marbles'?'':`<label class="switch"><input type="checkbox" name="colourChoice" ${p.colourChoice?'checked':''}> Customer picks a filament colour</label>`}
       ${kit||p.tier==='marbles'?'':`<label class="switch"><input type="checkbox" name="recolour" ${p.recolour!==false?'checked':''}> Change the photo's colour to match the colour picked</label>`}
       <label class="switch"><input type="checkbox" name="active" ${p.active?'checked':''}> Show in shop</label>
     </div>
-    ${kit?`<div style="margin-top:18px"><div class="row"><b>Preset basic pieces</b><div class="spacer"></div><span class="chip paid-yes">${(p.presetBasic||[]).reduce((s,i)=>s+num(i.qty),0)} pieces</span></div>
+    ${kit?`<div style="margin-top:18px"><div class="row"><b>Preset basic tracks</b><div class="spacer"></div><span class="chip paid-yes">${(p.presetBasic||[]).reduce((s,i)=>s+num(i.qty),0)} pieces</span></div>
       <div class="muted small" style="margin:2px 0 8px">Chosen by you. Every customer gets these in this package.</div>
       ${(p.presetBasic||[]).map((inc,i)=>`<div class="inc-row"><select data-chg="preBasicPart" data-i="${i}">${Store.products.filter(x=>x.type==='part'&&x.tier==='basic').map(pp=>`<option value="${pp.id}" ${pp.id===inc.partId?'selected':''}>${esc(pp.name)}</option>`).join('')}</select>
         <input type="number" min="1" value="${inc.qty}" data-chg="preBasicQty" data-i="${i}"><button type="button" class="btn sm" data-act="preBasicRemove" data-i="${i}">✕</button></div>`).join('')}
-      <button type="button" class="btn sm" data-act="preBasicAdd">+ Add basic piece</button></div>
+      <button type="button" class="btn sm" data-act="preBasicAdd">+ Add basic track</button></div>
     <div style="margin-top:18px"><b>Always included components</b> <span class="muted small">— base, hoppers, connectors etc.</span><div style="margin-top:8px">
       ${(p.includes||[]).map((inc,i)=>`<div class="inc-row"><select data-chg="incPart" data-i="${i}">${parts.map(pp=>`<option value="${pp.id}" ${pp.id===inc.partId?'selected':''}>${esc(pp.name)}</option>`).join('')}</select>
         <input type="number" min="1" value="${inc.qty}" data-chg="incQty" data-i="${i}"><button type="button" class="btn sm" data-act="incRemove" data-i="${i}">✕</button></div>
@@ -1475,7 +1477,7 @@ function adminCosts(){
 function packagePanel(k,c){
   const P=Store.products, rows=[];
   const line=(label,b,q=1)=>rows.push({label,print:b.print*q,bought:b.bought*q,total:b.total*q});
-  if(num(k.randomBasic)){ const a=tierAvg('basic',P,c); line(`${num(k.randomBasic)} × random basic pieces <span class="muted small">(average of ${a.count})</span>`,a.b,num(k.randomBasic)); }
+  if(num(k.randomBasic)){ const a=tierAvg('basic',P,c); line(`${num(k.randomBasic)} × random basic tracks <span class="muted small">(average of ${a.count})</span>`,a.b,num(k.randomBasic)); }
   [['basic',num(k.chooseBasic)],['premium',num(k.choosePremium)]].forEach(([t,n])=>{ if(!n) return; const a=tierAvg(t,P,c); line(`${n} × ${TIER_PLURAL[t].toLowerCase()} <span class="muted small">(average of ${a.count})</span>`,a.b,n); });
   [...(k.presetBasic||[]),...(k.includes||[])].forEach(i=>{const p=Store.product(i.partId); if(p) line(`${i.qty} × ${esc(p.name)}${p.tier==='basic'?' <span class="muted small">(preset)</span>':''}`,partBreakdown(p,c),i.qty);});
   if(k.marbleChoice){ const ms=marblePacks(P); if(ms.length){ const b=ZERO(); ms.forEach(x=>addB(b,partBreakdown(x,c),1/ms.length)); line(`1 × marble pack (10) <span class="muted small">(average of ${ms.map(x=>esc(x.name.split(' ')[0])).join(' / ')})</span>`,b); } }
@@ -1653,7 +1655,7 @@ const actions = {
   closeBuilder:()=>{ ui.builder=null; render(); },
   bSwap:el=>{ const b=ui.builder; b.swaps=b.swaps||{}; b.swaps[el.dataset.i]=el.dataset.id; render(); },
   bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); render(); },
-  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); render(); },
+  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); if(!b.palette) b.palette=palettes()[0]?.name||''; b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); render(); },
   bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else b.picks[id]=1; render(); },
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
   bQty:el=>{ ui.builder.qty=Math.max(1,ui.builder.qty+Number(el.dataset.d)); render(); },
