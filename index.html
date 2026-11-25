@@ -101,6 +101,10 @@ main{padding:22px 0 60px}
 .includes ul{margin:4px 0 0;padding-left:18px}
 .save{display:inline-block;background:#E5F5EC;color:var(--green);font-weight:800;font-size:12px;padding:2px 8px;border-radius:999px}
 .row{display:flex;gap:8px;align-items:center}
+.pop-bg{position:fixed;inset:0;z-index:70;background:rgba(15,18,25,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:popfade .15s ease-out}
+.pop{background:var(--card);color:var(--ink);border-radius:20px;padding:22px 20px 14px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;animation:popin .18s ease-out}
+.pop-tick{width:48px;height:48px;border-radius:50%;background:var(--ok-bg,#E6F4EC);color:var(--ok,#22794F);display:grid;place-items:center;font-size:26px;font-weight:800;margin-bottom:10px}
+@keyframes popin{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}} @keyframes popfade{from{opacity:0}to{opacity:1}}
 .add-row{display:flex;align-items:center;gap:8px}
 .dots{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
 .dot{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.18);padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s}
@@ -125,6 +129,9 @@ label.f span.hint{font-weight:500;color:var(--muted)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .form-grid .full{grid-column:1/-1}
 .line{display:grid;grid-template-columns:56px 1fr auto auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.line .lt{display:flex;flex-direction:column;align-items:flex-end}
+.ln-rm{border:0!important;padding:2px 0!important;background:none!important}
+header.top .btn{white-space:nowrap}
 .line:last-child{border-bottom:0}
 .thumb{width:56px;height:56px;border-radius:10px;object-fit:cover;background:var(--imgbg)}
 .tot{display:flex;justify-content:space-between;padding:5px 0}
@@ -253,7 +260,9 @@ body{overscroll-behavior-y:none}
 @media (max-width:760px){
   .hero{grid-template-columns:1fr;padding:20px}.hero h1{font-size:27px}
   .two{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr}
-  .line{grid-template-columns:48px 1fr auto}.line .lt{grid-column:2/-1}
+  .line{grid-template-columns:56px 1fr auto;grid-template-areas:"t i i" "t q p";row-gap:10px;column-gap:12px;align-items:start}
+  .line .thumb{grid-area:t;width:56px;height:56px}.line .ln-info{grid-area:i;min-width:0}.line .qty{grid-area:q;justify-self:start}
+  .line .lt{grid-area:p;flex-direction:row;align-items:center;gap:12px;align-self:center}
   .invoice{padding:18px}.invoice .cols{grid-template-columns:1fr}
   .hide-m{display:none}
   .brand small{display:none}
@@ -334,7 +343,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.76'; // bump with each update
+const APP_VERSION = '0.77'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -727,7 +736,7 @@ function seed(){
     legalName:'Emmerson Locksmiths Pty Ltd', abn:'', gstRegistered:false, contactEmail:'', contactPhone:'',
     bankName:'', bsb:'', accountNo:'', accountName:'', payId:'',
     paymentTerms:'Payment due within 7 days. Please use your order number as the payment reference. Printing starts once payment is received.',
-    pickupNote:'Local pickup on the Sunshine Coast. We\'ll message you to arrange a time.',
+    pickupNote:'Local pickup from Palmview, Sunshine Coast. We\'ll message you to arrange a time.',
     postEnabled:false, postageFlat:12, freePostageOver:0,
     colours:'Red, Blue, Yellow, Green, Purple, Orange, Black, White, Pink, Rainbow mix',
     adminPin:'1234', costs:C, palettes:JSON.parse(JSON.stringify(DEFAULT_PALETTES)) }};
@@ -899,6 +908,8 @@ function paintTheme(){ const t=effTheme();
 if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',()=>{ if(effTheme()==='auto'){ paintTheme(); applyRecolour(); } });
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
+const PICKUP_PLACE = 'Local pickup from Palmview, Sunshine Coast';
+const pickupText = () => { const n=(Store.settings.pickupNote||'').trim(); return !n||/^Local pickup on the Sunshine Coast/i.test(n)?PICKUP_PLACE+". We'll message you to arrange a time.":n; };
 function header(){
   const s=Store.settings, r=route();
   return `<header class="top"><div class="wrap">
@@ -907,7 +918,7 @@ function header(){
     ${r==='admin'
       ? `${ui.admin?`<button class="btn theme-btn" data-act="toggleTheme" title="Theme: ${THEME_NAMES[getTheme()]}">${THEMES[getTheme()]}</button>`:''}<a class="btn sm" href="#shop"><span class="hide-m">View&nbsp;</span>Shop</a>${ui.admin&&(REQUIRE_PIN||CLOUD)?`<button class="btn sm" data-act="logout">Sign out</button>`:''}`
       : `${r!=='shop'?`<a class="btn sm" href="#shop">← Shop</a>`:''}
-         ${ui.admin?`<a class="btn sm" href="#admin">⚙️ Admin</a><button class="btn sm" data-act="logout">Log out</button>`:`<a class="btn sm" href="#admin">Log in</a>`}
+         ${ui.admin?`<a class="btn sm" href="#admin" aria-label="Admin">⚙️<span class="hide-m">&nbsp;Admin</span></a><button class="btn sm hide-m" data-act="logout">Log out</button>`:`<a class="btn sm" href="#admin">Log in</a>`}
          <a class="btn primary" href="#cart">🛒 Cart ${cartCount()?`<span class="pill" style="background:#fff;color:var(--accent)">${cartCount()}</span>`:''}</a>`}
   </div></header>`;
 }
@@ -1054,24 +1065,24 @@ function viewCart(){
   return `<h1 style="margin:0 0 14px">Your order</h1><div class="two">
     <div class="panel">${lines.map(l=>{const pr=linePrice(l), m=Store.product(l.marbles);return `<div class="line">
         <img class="thumb" src="${imgOf(l.product)}" alt=""${l.product.type!=='kit'&&l.colour?rcAttrs(l.product,l.colour):''}>
-        <div><b>${esc(l.product.name)}</b><div class="muted small">${l.palette?`🎨 ${esc(l.palette)} palette · `:l.colour?`${swatch(l.colour)}${esc(l.colour)} · `:''}${money(pr)} each</div>
+        <div class="ln-info"><b>${esc(l.product.name)}</b><div class="muted small">${l.palette?`🎨 ${esc(l.palette)} palette · `:l.colour?`${swatch(l.colour)}${esc(l.colour)} · `:''}${money(pr)} each</div>
           ${l.product.type==='kit'?`<div class="muted small">${[...Object.entries(l.swaps||{}).filter(([idx,id])=>id!==(l.product.includes||[])[idx]?.partId).map(([,id])=>esc(Store.product(id)?.name||'')),...Object.entries(l.picks||{}).map(([id,q])=>`${q}× ${esc(Store.product(id)?.name||'')}`)].join(', ')}${m?`, ${esc(m.name)}`:''}</div>`:''}</div>
         <div class="qty"><button data-act="lineQty" data-k="${l.key}" data-d="-1">−</button><input value="${l.qty}" readonly><button data-act="lineQty" data-k="${l.key}" data-d="1">+</button></div>
-        <div class="lt num"><b>${money(pr*l.qty)}</b><br><button class="btn sm danger" style="border:0;padding:2px 0" data-act="removeLine" data-k="${l.key}">Remove</button></div>
+        <div class="lt num"><b>${money(pr*l.qty)}</b><button class="btn sm danger ln-rm" data-act="removeLine" data-k="${l.key}" aria-label="Remove ${esc(l.product.name)}">Remove</button></div>
       </div>`;}).join('')}
-      <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-act="openExtras">+ Add extra pieces & marbles</button><a class="btn sm" href="#shop">+ Add another package</a></div></div>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn sm" data-act="openExtras">+ Add individual tracks & marbles</button><a class="btn sm" href="#shop">+ Add another package</a></div></div>
     <div class="panel">${deliveryPicker()}${totalsBlock(t)}<a class="btn primary block" style="margin-top:14px" href="#checkout">Continue to details</a></div></div>`;
 }
 function deliveryPicker(){
   const s=Store.settings; if(!s.postEnabled) ui.delivery='pickup';
   const free=num(s.freePostageOver)>0?` · free over ${money(s.freePostageOver)}`:'';
   return `<div style="display:grid;gap:8px;margin-bottom:12px"><b>Delivery</b>
-    <label class="radio-card ${ui.delivery==='pickup'?'on':''}"><input type="radio" name="dl" value="pickup" ${ui.delivery==='pickup'?'checked':''} data-chg="delivery"><div><b>Pickup</b> — free<div class="muted small">${esc(s.pickupNote)}</div></div></label>
+    <label class="radio-card ${ui.delivery==='pickup'?'on':''}"><input type="radio" name="dl" value="pickup" ${ui.delivery==='pickup'?'checked':''} data-chg="delivery"><div><b>Local pickup</b> — free<div class="muted small">${esc(pickupText())}</div></div></label>
     ${s.postEnabled?`<label class="radio-card ${ui.delivery==='post'?'on':''}"><input type="radio" name="dl" value="post" ${ui.delivery==='post'?'checked':''} data-chg="delivery"><div><b>Post</b> — ${money(s.postageFlat)}${free}<div class="muted small">Australia-wide, tracked.</div></div></label>`:''}
   </div>`;
 }
 const totalsBlock = t => `<div class="tot"><span>Subtotal</span><span>${money(t.subtotal)}</span></div>
-  <div class="tot"><span>Delivery</span><span>${t.shipping?money(t.shipping):'Free'}</span></div>
+  <div class="tot"><span>${ui.delivery==='post'?'Postage':'Pickup'}</span><span>${t.shipping?money(t.shipping):'Free'}</span></div>
   <div class="tot big"><span>Total</span><span>${money(t.total)}</span></div>
   ${Store.settings.gstRegistered?`<div class="muted small" style="text-align:right">Includes GST of ${money(t.total/11)}</div>`:''}`;
 
@@ -1134,7 +1145,7 @@ function invoiceHTML(o){
       <div><div class="doc">${gst?'Tax invoice':'Invoice'}</div><div style="text-align:right;font-size:13px;margin-top:4px">No. <b>${esc(o.number)}</b><br>Date: ${fmtDate(o.createdAt)}</div></div></div>
     <div class="cols"><div><div style="font-size:12px;text-transform:uppercase;color:#777;font-weight:700">Bill to</div>
         <b>${esc(o.customer.name)}</b><br>${esc(o.customer.email)}<br>${esc(o.customer.phone)}${o.customer.address?`<br>${esc(o.customer.address).replace(/\n/g,'<br>')}`:''}</div>
-      <div><div style="font-size:12px;text-transform:uppercase;color:#777;font-weight:700">Delivery</div>${o.delivery==='post'?'Post':'Pickup'}<br><span style="color:#555;font-size:13px">${o.delivery==='pickup'?esc(s.pickupNote):''}</span></div></div>
+      <div><div style="font-size:12px;text-transform:uppercase;color:#777;font-weight:700">Delivery</div>${o.delivery==='post'?'Post':'Local pickup'}<br><span style="color:#555;font-size:13px">${o.delivery==='pickup'?esc(pickupText()):''}</span></div></div>
     <table><thead><tr><th>Item</th><th>Colour</th><th style="text-align:right">Qty</th><th style="text-align:right">Price</th><th style="text-align:right">Amount</th></tr></thead>
       <tbody>${o.items.map(i=>`<tr><td>${esc(i.name)}${i.type==='kit'?`<div style="color:#777;font-size:12px">${esc(itemContents(i))}</div>`:''}</td><td>${esc(i.colour||'—')}</td><td style="text-align:right">${i.qty}</td><td style="text-align:right">${money(i.price)}</td><td style="text-align:right">${money(i.price*i.qty)}</td></tr>`).join('')}</tbody></table>
     <div class="tots"><div><span>Subtotal</span><span>${money(o.subtotal)}</span></div><div><span>Delivery</span><span>${money(o.shipping)}</span></div>
@@ -1198,7 +1209,7 @@ function termsHTML(){
   ${H('3. Prices')}<p>All prices are in Australian dollars. ${s.gstRegistered?'Prices include GST.':'We are not currently registered for GST, so no GST is charged.'} The price you pay is the price shown on your invoice.</p>
   ${H('4. Payment')}<p>Payment is by bank transfer using the details on your invoice, with your order number as the reference. ${esc(s.paymentTerms||'')} If an order isn't paid within 14 days, we may cancel it.</p>
   ${H('5. Made to order and lead time')}<p>Every piece is 3D printed and made to order once your payment is received. Please allow <b>up to 1 week after payment</b> for printing and manufacturing before your order is ready. Busy periods may take a little longer, and if your order will be delayed we'll let you know.</p>
-  ${H('6. Collection')}<p>Orders are collected locally on the Sunshine Coast. We'll message you when your order is ready to arrange a time. Please collect within 30 days of being notified, or contact us if you need longer.${s.postEnabled?' Where postage is offered, delivery times depend on Australia Post and the risk passes to you once the parcel is delivered.':''}</p>
+  ${H('6. Collection')}<p>Orders are collected from Palmview, Sunshine Coast. We'll message you when your order is ready to arrange a time. Please collect within 30 days of being notified, or contact us if you need longer.${s.postEnabled?' Where postage is offered, delivery times depend on Australia Post and the risk passes to you once the parcel is delivered.':''}</p>
   ${H('7. About 3D printed products')}<p>Our products are 3D printed in plastic, so small layer lines, slight surface marks and minor variations between pieces are normal and are not faults. Colours may look different on your screen. The 3D tower preview is an illustration only, and colours within your chosen palette are assigned to pieces as shown when you ordered.</p>
   ${H('8. Safety')}<p style="background:var(--note-bg);border:1px solid var(--note-line);color:var(--note-ink);border-radius:10px;padding:10px 12px"><b>⚠️ WARNING: CHOKING HAZARD.</b> Contains small parts and small balls (marbles). <b>Not suitable for children under 3 years.</b></p>
   <p>Adult supervision is recommended for young children. Use the products only as a marble run. Keep them away from heat (for example, a hot car), as the plastic can soften and warp. Check pieces regularly and stop using any piece that is cracked or broken.</p>
@@ -1305,7 +1316,7 @@ function emailInvoiceHTML(o, paidReceipt){
     <p style="margin:0 0 14px">${paidReceipt?'Thanks for your payment. Here is your receipt.':'Thanks for your order, we\'ve received it! This email is your order confirmation and invoice. We start printing once payment is received.'}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;background:#F6F2EA;border-radius:10px;margin-bottom:16px"><tr>
       <td style="padding:12px;vertical-align:top;width:50%"><div style="font-size:11px;color:#777;font-weight:bold;letter-spacing:.5px">ORDER DETAILS</div>
-        Order no. <b>${esc(o.number)}</b><br>Placed ${fmtDateTime(o.createdAt)}<br>${o.delivery==='post'?'Delivery: Post':'Delivery: Pickup'}<br>Status: <b>${o.paid?'Paid':'Awaiting payment'}</b></td>
+        Order no. <b>${esc(o.number)}</b><br>Placed ${fmtDateTime(o.createdAt)}<br>${o.delivery==='post'?'Delivery: Post':'Delivery: '+PICKUP_PLACE}<br>Status: <b>${o.paid?'Paid':'Awaiting payment'}</b></td>
       <td style="padding:12px;vertical-align:top"><div style="font-size:11px;color:#777;font-weight:bold;letter-spacing:.5px">YOUR DETAILS</div>
         ${esc(o.customer.name)}<br>${esc(o.customer.phone)}<br>${esc(o.customer.email)}${o.customer.address?'<br>'+esc(o.customer.address).replace(/\n/g,'<br>'):''}</td></tr></table>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -1314,7 +1325,7 @@ function emailInvoiceHTML(o, paidReceipt){
         <td style="text-align:right;border-bottom:1px solid #eee">${i.qty}</td><td style="text-align:right;border-bottom:1px solid #eee">${money(i.price*i.qty)}</td></tr>`).join('')}
     </table>
     <table style="width:260px;margin:12px 0 0 auto;border-collapse:collapse;font-size:14px">
-      ${eRow('Subtotal',money(o.subtotal))}${eRow(o.delivery==='post'?'Postage':'Pickup',money(o.shipping))}${eRow('Total'+(gst?' (inc. GST)':''),money(o.total),true)}
+      ${eRow('Subtotal',money(o.subtotal))}${eRow(o.delivery==='post'?'Postage':'Local pickup (Palmview)',money(o.shipping))}${eRow('Total'+(gst?' (inc. GST)':''),money(o.total),true)}
       ${gst?eRow('GST included',money(o.total/11)):''}${paidReceipt||o.paid?eRow('<span style="color:#22794F;font-weight:bold">PAID</span>','<span style="color:#22794F">✓</span>'):''}
     </table>
     ${!gst?`<div style="font-size:12px;color:#777;margin-top:6px">No GST has been charged.</div>`:''}
@@ -1322,7 +1333,7 @@ function emailInvoiceHTML(o, paidReceipt){
       ${bank.length?bank.join('<br>'):'We\'ll send you our payment details shortly.'}<br>Reference: <b>${esc(o.number)}</b>
       <div style="font-size:13px;color:#555;margin-top:6px">${esc(s.paymentTerms)}</div></div>`}
     <div style="background:#FFF4D6;border-radius:10px;padding:12px 14px;margin-top:16px;font-size:14px;color:#5C4500"><b>⏳ Made to order</b><br>${esc(leadNote())}</div>
-    <p style="font-size:14px;margin-top:18px">${o.delivery==='pickup'?esc(s.pickupNote):'We\'ll post your order to:<br>'+esc(o.customer.address).replace(/\n/g,'<br>')}</p>
+    <p style="font-size:14px;margin-top:18px">${o.delivery==='pickup'?esc(pickupText()):'We\'ll post your order to:<br>'+esc(o.customer.address).replace(/\n/g,'<br>')}</p>
     <p style="font-size:12px;color:#777;margin-top:14px">By placing this order you agreed to our <a href="https://emmersonlocksmiths.github.io/marble-motion/#terms" style="color:#2F5FD0">Terms &amp; Conditions</a>. ⚠️ Choking hazard: small parts and marbles. Not suitable for children under 3.</p>
     <p style="font-size:13px;color:#777;margin-top:10px">Questions? Just reply to this email${s.contactPhone?` or call ${esc(s.contactPhone)}`:''}.</p>`);
 }
@@ -1568,7 +1579,7 @@ function adminSettings(){
       ${F('accountName','Account name')}${F('bankName','Bank')}${F('bsb','BSB')}${F('accountNo','Account number')}${F('payId','PayID','optional')}
       <label class="f full">Payment terms<textarea name="paymentTerms" rows="2">${esc(s.paymentTerms)}</textarea></label></div></div>
     <div class="panel" style="margin-bottom:16px"><h3 style="margin-top:0">Delivery & colours</h3><div class="form-grid">
-      <label class="f full">Pickup note<input type="text" name="pickupNote" value="${esc(s.pickupNote)}"></label>
+      <label class="f full">Pickup note<input type="text" name="pickupNote" value="${esc(pickupText())}"></label>
       <label class="f full">Lead time note <span class="hint">shown at checkout, on the thank-you page and in the order email</span><textarea name="leadTimeNote" rows="2">${esc(leadNote())}</textarea></label>
       <label class="switch full"><input type="checkbox" name="postEnabled" ${s.postEnabled?'checked':''}> Offer postage (off while sales are local pickup only)</label>
       ${F('postageFlat','Flat postage charge (AUD)','','number')}${F('freePostageOver','Free postage over (AUD)','0 = never','number')}
@@ -1652,6 +1663,12 @@ function renderModal(){ _renderModal(); applyRecolour($('#modal-root')); }
 function _renderModal(){
   const m=$('#modal-root'), r=route();
   if(ui.showTerms){ m.innerHTML=`<div class="modal-bg" data-act="closeTerms"><div class="modal" data-stop style="max-width:760px"><div class="modal-head"><b>Terms &amp; Conditions</b><div class="spacer"></div><button class="btn primary sm" data-act="closeTerms">Close</button></div>${termsHTML()}</div></div>`; return; }
+  if(r==='shop'&&ui.added){ const a=ui.added; m.innerHTML=`<div class="pop-bg" data-act="closeAdded"><div class="pop" data-stop role="dialog" aria-label="Added to cart">
+      <div class="pop-tick" aria-hidden="true">✓</div><b style="font-size:18px">Added to your cart</b>
+      <div class="muted small" style="margin:4px 0 16px">${a.qty>1?a.qty+' × ':''}${esc(a.name)} · ${money(a.price)}</div>
+      <button class="btn primary" style="width:100%" data-act="addedCart">🛒 Go to cart</button>
+      <button class="btn" style="width:100%;margin-top:8px" data-act="addedExtras">Add individual tracks</button>
+      <button class="linkbtn small" style="margin-top:12px" data-act="closeAdded">Keep browsing</button></div></div>`; return; }
   if((r==='shop'||r==='cart')&&ui.extras){ m.innerHTML=extrasModal(); return; }
   if(r==='admin'&&ui.admin&&ui.colEdit){ m.innerHTML=colourEditorModal(); return; }
   if(r==='admin'&&ui.admin&&ui.editing){ m.innerHTML=productModal(); return; }
@@ -1664,6 +1681,9 @@ function _renderModal(){
 const findCart = k => cart.find(x=>x.key===k);
 const actions = {
   shopTab:el=>{ui.shopTab=el.dataset.v;render();},
+  closeAdded:()=>{ ui.added=null; renderModal(); },
+  addedCart:()=>{ ui.added=null; location.hash='#cart'; },
+  addedExtras:()=>{ ui.added=null; ui.shopTab='parts'; render(); const t=document.querySelector('.shop-tabs'); if(t) window.scrollTo({top:Math.max(0,t.getBoundingClientRect().top+scrollY-90),behavior:'smooth'}); },
   cardQty:el=>{const i=el.closest('.card').querySelector('.cq');i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d));},
   cardDot:el=>{ const card=el.closest('.card'), c=el.dataset.c; if(!card) return; ui.cardCol=ui.cardCol||{}; ui.cardCol[card.dataset.pid]=c;
     card.querySelectorAll('.dot').forEach(d=>{ const on=d===el; d.classList.toggle('on',on); d.setAttribute('aria-checked',on); });
@@ -1684,7 +1704,8 @@ const actions = {
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
   bQty:el=>{ ui.builder.qty=Math.max(1,ui.builder.qty+Number(el.dataset.d)); render(); },
   bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId); cart.push({key:uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles,swaps:{...(b.swaps||{})},...(b.rbasic?{rbasic:[...b.rbasic]}:{})});
-    saveCart(); ui.builder=null; ui.extras='added'; render(); },
+    saveCart(); ui.builder=null; ui.added={name:k.name,qty:b.qty,price:(k.price+kitExtra(k,b,Store.products))*b.qty}; render();
+    const t=document.querySelector('.shop-tabs'); if(t) window.scrollTo({top:Math.max(0,t.getBoundingClientRect().top+scrollY-90),behavior:'smooth'}); },
   openExtras:()=>{ ui.extras='open'; renderModal(); },
   exQty:el=>{ const i=el.closest('.ex-row').querySelector('.ex-q'); i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d)); },
   exAdd:el=>{ const r=el.closest('.ex-row'), id=r.dataset.pid, qty=Math.max(1,parseInt(r.querySelector('.ex-q').value)||1), colour=r.querySelector('.ex-colour')?.value||'';
@@ -1752,7 +1773,7 @@ const actions = {
 };
 document.addEventListener('click',e=>{
   const el=e.target.closest('[data-act]'); if(!el) return;
-  if(el.classList.contains('modal-bg')&&e.target!==el) return; // clicks inside a modal don't close it
+  if((el.classList.contains('modal-bg')||el.classList.contains('pop-bg'))&&e.target!==el) return; // clicks inside a modal don't close it
   const fn=actions[el.dataset.act]; if(fn){ if(el.tagName==='BUTTON'&&el.type!=='submit') e.preventDefault(); fn(el,e); }
 });
 document.addEventListener('change',async e=>{
