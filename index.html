@@ -357,7 +357,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.81'; // bump with each update
+const APP_VERSION = '0.82'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -454,6 +454,14 @@ const defaultMarble = products => { const m=marblePacks(products); return m.leng
 // random basic tracks: a package can include N different basic tracks picked at random (customer can reshuffle)
 const randomPool = (k, products, picks) => { const skip=new Set([...(k.presetBasic||[]).map(i=>i.partId),...Object.keys(picks||{})]);
   return products.filter(p=>p.type==='part'&&p.tier==='basic'&&p.active&&!skip.has(p.id)); };
+// the basic track tiles in the builder: preset (always included) and random ones mixed together, in a shuffled order
+// that only changes when the customer shuffles, so a compulsory track moves around like the rest
+function basicTiles(k,b){
+  const tiles=[...(k.presetBasic||[]).flatMap((i,idx)=>[...Array(num(i.qty)||1)].map((_,n)=>({key:'b-'+idx+'-'+n,id:i.partId}))),...(b.rbasic||[]).map(id=>({key:'r-'+id+'-0',id}))];
+  const keys=tiles.map(t=>t.key).sort().join('|');
+  if(!b.tileOrder||b.tileOrder.slice().sort().join('|')!==keys){ const o=tiles.map(t=>t.key); for(let x=o.length-1;x>0;x--){ const y=Math.floor(Math.random()*(x+1)); [o[x],o[y]]=[o[y],o[x]]; } b.tileOrder=o; }
+  return b.tileOrder.map(key=>tiles.find(t=>t.key===key));
+}
 const presetCount = k => (k.presetBasic||[]).reduce((t,i)=>t+num(i.qty),0);
 // "Random basic tracks" is the total basic tracks in the package; preset tracks count towards it and are always included
 const randomCount = k => num(k.randomBasic)?Math.max(0,num(k.randomBasic)-presetCount(k)):0;
@@ -1066,7 +1074,7 @@ function builderPanel(){
           <button class="btn sm ${on?'primary':''}" data-act="bSwap" data-i="${idx}" data-id="${id}">${on?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`;}).join('')}
     ${num(k.randomBasic)?`<div style="margin-bottom:18px"><div class="row" style="margin-bottom:8px;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><h3 style="margin:0">Your ${b.rbasic.length+presetCount(k)} basic tracks</h3><div class="muted small">Picked at random. Not keen? Shuffle for a different set, or shuffle the colours.</div></div>
       <div class="shuf"><button class="btn" data-act="bShufflePieces">🎲 Shuffle tracks</button>${k.colourChoice?`<button class="btn primary" data-act="bShuffle">🎨 Shuffle colours</button>`:''}</div></div>
-      <div class="pc-grid">${(k.presetBasic||[]).flatMap((i,idx)=>[...Array(num(i.qty)||1)].map((_,n)=>{const p=Store.product(i.partId), key='b-'+idx+'-'+n, c=(b.colourMap||{})[key];return p?`<div class="pc-tile"><img src="${imgOf(p)}" alt=""${b.palette?rcAttrs(p,c):''}><div class="pc-name"${b.palette?'':' style="padding-bottom:8px"'}>${esc(p.name)}</div>${b.palette?`<div class="pc-col">${swatch(c)}${esc(c||'')}</div>`:''}</div>`:'';})).join('')}${b.rbasic.map(id=>{const p=Store.product(id);return p?`<div class="pc-tile"><img src="${imgOf(p)}" alt=""${b.palette?rcAttrs(p,(b.colourMap||{})['r-'+id+'-0']):''}><div class="pc-name"${b.palette?'':' style="padding-bottom:8px"'}>${esc(p.name)}</div>${b.palette?`<div class="pc-col">${swatch((b.colourMap||{})['r-'+id+'-0'])}${esc((b.colourMap||{})['r-'+id+'-0']||'')}</div>`:''}</div>`:'';}).join('')}</div></div>`:''}
+      <div class="pc-grid">${basicTiles(k,b).map(t=>{const p=Store.product(t.id), c=(b.colourMap||{})[t.key];return p?`<div class="pc-tile"><img src="${imgOf(p)}" alt=""${b.palette?rcAttrs(p,c):''}><div class="pc-name"${b.palette?'':' style="padding-bottom:8px"'}>${esc(p.name)}</div>${b.palette?`<div class="pc-col">${swatch(c)}${esc(c||'')}</div>`:''}</div>`:'';}).join('')}</div></div>`:''}
     ${section('premium',num(k.choosePremium))}${section('basic',num(k.chooseBasic))}
     <div class="form-grid" style="margin-bottom:16px">
       ${k.marbleChoice?`<div><b>Your marbles (10 pack)</b><div style="display:grid;gap:8px;margin-top:8px">${marblePacks(Store.products).map(m=>{const up=marbleUpgrade(k,m.id,Store.products);
@@ -1837,7 +1845,7 @@ const actions = {
     render(); setTimeout(()=>document.getElementById('builder')?.scrollIntoView({behavior:'smooth',block:'start'}),30); },
   closeBuilder:()=>{ ui.builder=null; render(); },
   bSwap:el=>{ const b=ui.builder; b.swaps=b.swaps||{}; b.swaps[el.dataset.i]=el.dataset.id; render(); },
-  bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); render(); },
+  bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); b.tileOrder=null; render(); },
   bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); if(!b.palette) b.palette=palettes()[0]?.name||''; b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); b.preview={}; render(); },
   bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else { b.picks[id]=1; if(b.palette&&b.preview&&b.preview[id]) b.colourMap={...(b.colourMap||{}),['p-'+id+'-0']:b.preview[id]}; } render(); },
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
