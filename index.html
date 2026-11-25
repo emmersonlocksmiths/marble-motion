@@ -388,7 +388,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.84'; // bump with each update
+const APP_VERSION = '0.85'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1101,7 +1101,7 @@ function builderPanel(){
     ${choiceIdx.map(idx=>{ const inc=k.includes[idx], cur=b.swaps[idx]||inc.partId;
       return `<div style="margin-bottom:18px"><h3 style="margin:0 0 8px">Choose your ${esc((inc.label||Store.product(inc.partId)?.name||'piece').toLowerCase())}</h3>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${incOptions(inc).map(id=>{const p=Store.product(id); if(!p||!p.active&&id!==inc.partId) return ''; const on=cur===id, up=swapPrice(k,idx,id,Store.products);
-        return `<div class="card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${on&&b.palette?rcAttrs(p,(b.colourMap||{})['c-'+id+'-0']):''}><div class="body" style="padding:10px;gap:6px">
+        return `<div class="card" style="${on?'border:2px solid var(--accent)':''}"><img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${b.palette?rcAttrs(p,(b.colourMap||{})['c-'+cur+'-0']):''}><div class="body" style="padding:10px;gap:6px">
           <div class="row" style="justify-content:space-between;gap:6px"><b class="small">${esc(p.name)}</b><b class="small">${signedMoney(up)}</b></div>
           <button class="btn sm ${on?'primary':''}" data-act="bSwap" data-i="${idx}" data-id="${id}">${on?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`;}).join('')}
     ${num(k.randomBasic)?`<div style="margin-bottom:18px"><div class="row" style="margin-bottom:8px;gap:10px;flex-wrap:wrap"><div style="flex:1;min-width:160px"><h3 style="margin:0">Your ${b.rbasic.length+presetCount(k)} basic tracks</h3><div class="muted small">Picked at random. Not keen? Shuffle for a different set, or shuffle the colours.</div></div>
@@ -1894,7 +1894,8 @@ const actions = {
   openBuilder:el=>{ if(ui.builder?.kitId!==el.dataset.id){ const d=defaultMarble(Store.products); ui.builder={kitId:el.dataset.id,picks:{},marbles:d?.id||'',swaps:{},palette:'',colourMap:{},qty:1}; }
     ui.anim='builder'; render(); setTimeout(()=>{ const bd=document.getElementById('builder'); if(!bd) return; const head=document.querySelector('header.top')?.offsetHeight||0; window.scrollTo({top:Math.max(0,bd.getBoundingClientRect().top+scrollY-head-12),behavior:'smooth'}); },30); },
   closeBuilder:()=>{ const bd=$('#builder'); const go=()=>{ ui.builder=null; render(); }; if(bd&&animOK()){ bd.classList.add('anim-up'); setTimeout(go,180); } else go(); },
-  bSwap:el=>{ const b=ui.builder; b.swaps=b.swaps||{}; b.swaps[el.dataset.i]=el.dataset.id; render(); },
+  bSwap:el=>{ const b=ui.builder, k=Store.product(b.kitId), inc=(k.includes||[])[el.dataset.i]; b.swaps=b.swaps||{}; const cur=b.swaps[el.dataset.i]||inc?.partId, col=(b.colourMap||{})['c-'+cur+'-0'];
+    b.swaps[el.dataset.i]=el.dataset.id; if(col) b.colourMap={...b.colourMap,['c-'+el.dataset.id+'-0']:col}; render(); },
   bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); b.tileOrder=null; ui.anim='tiles'; render(); },
   bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); if(!b.palette) b.palette=palettes()[0]?.name||''; b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); b.preview={}; ui.anim='colours'; render(); },
   bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else { b.picks[id]=1; if(b.palette&&b.preview&&b.preview[id]) b.colourMap={...(b.colourMap||{}),['p-'+id+'-0']:b.preview[id]}; } render(); },
