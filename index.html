@@ -102,6 +102,11 @@ main{padding:22px 0 60px}
 .save{display:inline-block;background:#E5F5EC;color:var(--green);font-weight:800;font-size:12px;padding:2px 8px;border-radius:999px}
 .row{display:flex;gap:8px;align-items:center}
 .add-row{display:flex;align-items:center;gap:8px}
+.dots{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
+.dot{width:24px;height:24px;border-radius:50%;border:1px solid rgba(0,0,0,.18);padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s}
+.dot.on{box-shadow:0 0 0 2px var(--card),0 0 0 4px var(--accent);transform:scale(1.05)}
+.dot:active{transform:scale(.9)}
+.dot-name{flex:1;min-width:0;font-weight:700;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .add-row .colour{flex:1;min-width:0;margin:0}
 .addbtn{flex:none;width:44px;height:44px;border-radius:50%;border:0;background:var(--accent);color:#fff;display:grid;place-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .12s}
 .addbtn svg{width:22px;height:22px}
@@ -169,7 +174,7 @@ footer .wrap{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .pc-tile img{display:block;width:100%;aspect-ratio:1;object-fit:contain;background:var(--imgbg)}
 .pc-tile .pc-name{font-weight:700;padding:6px 8px 0;line-height:1.25}
 .pc-tile .pc-col{color:var(--muted);padding:2px 8px 8px}
-@media (max-width:760px){ .shuf{width:100%} .shuf .btn{flex:1;padding:10px 6px;font-size:14px} .brand .logo-img{height:34px!important} .pal-grid{grid-template-columns:1fr} .pc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:760px){ .tabs.shop-tabs{width:100%} .tabs.shop-tabs button{flex:1 1 0;justify-content:center;padding:8px 6px} .shuf{width:100%} .shuf .btn{flex:1;padding:10px 6px;font-size:14px} .brand .logo-img{height:34px!important} .pal-grid{grid-template-columns:1fr} .pc-grid{grid-template-columns:repeat(3,minmax(0,1fr))} }
 .alt-box{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:-2px 0 8px;background:var(--soft)}
 .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-weight:700;font-size:13px}
 .switch input{width:18px;height:18px;accent-color:var(--accent)}
@@ -329,7 +334,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.73'; // bump with each update
+const APP_VERSION = '0.74'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -625,7 +630,7 @@ function recolourData(img, hex, bgHex){
   const mono = wn < fgN*0.15; // white/grey/black piece: no colour to swap, so its own colour is kept
   if(!mono&&wn){ S0/=wn; L0/=wn; changed=true;
     const [Ht,St,Lt]=rgb2hsl(...hexRgb(hex)), grey=St<.12;
-  if(!grey&&hd(Ht)<25) return null; // photo is already this colour (e.g. a red piece and "Red"), so show the real photo untouched
+  if(!grey&&hd(Ht)<18&&Math.abs(Lt-L0)<.18&&Math.abs(St-S0)<.35) return null; // photo is already this colour (e.g. a red piece and "Red", but not pink), so show the real photo untouched
     for(let p=0,i=0;p<N;p++,i+=4){ const w=wt[p]; if(!w) continue;
       const l=hsl[p*3+2], sa=hsl[p*3+1];
       const nl=Math.max(.03,Math.min(.97,Lt+(l-L0)*(Lt>.85||Lt<.2?.6:.9)));
@@ -914,14 +919,14 @@ function viewShop(){
   let body;
   if(ui.shopTab==='kits') body = kits.length?`<div class="kit-grid">${kits.map(kitCard).join('')}</div>${ui.builder?builderPanel():''}`:`<div class="empty">Complete towers coming soon.</div>`;
   else if(!hasPackage()) body = `<div class="demo-note" style="background:var(--info-bg);border-color:var(--info-line);color:var(--info-ink);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These pieces are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
+      <div style="flex:1;min-width:220px"><b>New to Marble Motion? We recommend starting with a package.</b><br>These tracks are add-ons to grow a tower you already own. A package includes the base, hoppers and connectors you need to get started.</div>
       <button class="btn sm primary" data-act="shopTab" data-v="kits">See packages</button></div>`+TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('');
   else body = TIER_ORDER.map(t=>{const ps=parts.filter(p=>p.tier===t); return ps.length?`<h2 style="font-size:19px;margin:6px 0 12px">${TIER_PLURAL[t]}</h2><div class="grid" style="margin-bottom:24px">${ps.map(productCard).join('')}</div>`:'';}).join('') || `<div class="empty">Nothing here yet.</div>`;
   return `<div class="banner"><img class="b-light" src="icons/banner.jpg?v=3" alt="Marble Motion: designed for motion, built for fun." width="2600" height="697"><img class="b-dark" src="icons/banner-dark.jpg?v=5" alt="Marble Motion: designed for motion, built for fun." width="3600" height="697"></div>
     <div class="steps" style="margin:0 0 18px;justify-content:center"><span class="step"><b>1</b>Build your tower</span><span class="step"><b>2</b>Send your order</span><span class="step"><b>3</b>Enjoy your Marble Motion</span></div>
-    <div class="tabs">
+    <div class="tabs shop-tabs">
       <button class="${ui.shopTab==='kits'?'on':''}" data-act="shopTab" data-v="kits">Complete towers <span class="muted small">${kits.length}</span></button>
-      <button class="${ui.shopTab==='parts'?'on':''}" data-act="shopTab" data-v="parts">Extra pieces <span class="muted small">${parts.length}</span></button>
+      <button class="${ui.shopTab==='parts'?'on':''}" data-act="shopTab" data-v="parts">Individual tracks <span class="muted small">${parts.length}</span></button>
     </div>${body}`;
 }
 function kitCard(k){
@@ -938,12 +943,18 @@ function kitCard(k){
     <div class="includes"><b>What's included</b><ul>${inc}</ul></div><div class="spacer"></div>
     <button class="btn ${on?'':'primary'} block" data-act="openBuilder" data-id="${k.id}" ${k.price?'':'disabled'}>${!k.price?'Coming soon':on?'Selected ✓':'Choose this package'}</button></div></div>`;
 }
+// each item card starts on a random colour (spread evenly) so the page isn't all one colour; remembered while browsing
+let cardDeck=[];
+function cardColour(p){ const cols=extraColours(); ui.cardCol=ui.cardCol||{};
+  if(!cols.includes(ui.cardCol[p.id])){ if(!cardDeck.length) cardDeck=[...cols].sort(()=>Math.random()-.5); ui.cardCol[p.id]=cardDeck.pop()||cols[0]||''; }
+  return ui.cardCol[p.id]; }
 function productCard(p){
-  const firstCol=p.colourChoice?extraColours()[0]:'';
+  const firstCol=p.colourChoice?cardColour(p):'';
   return `<div class="card" data-pid="${p.id}"><img class="img" src="${imgOf(p)}" alt="${esc(p.name)}"${p.colourChoice?rcAttrs(p,firstCol):''}><div class="body">
       <div class="row" style="justify-content:space-between;align-items:flex-start"><h3>${esc(p.name)}</h3><span class="price">${p.price?money(p.price):'<span class="muted small">Price TBC</span>'}</span></div>
       <div class="muted small">${esc(p.description)}</div><div class="spacer"></div>
-      <div class="add-row">${p.colourChoice?`<select class="colour" aria-label="Colour" data-chg="cardColour">${extraColours().map(c=>`<option>${esc(c)}</option>`).join('')}</select>`:'<div class="spacer"></div>'}
+      ${p.colourChoice?`<div class="dots" role="radiogroup" aria-label="Colour">${extraColours().map(c=>`<button type="button" class="dot${c===firstCol?' on':''}" style="background:${colourHex(c)}" title="${esc(c)}" aria-label="${esc(c)}" aria-checked="${c===firstCol}" role="radio" data-act="cardDot" data-c="${esc(c)}"></button>`).join('')}</div>`:''}
+      <div class="add-row">${p.colourChoice?`<input type="hidden" class="colour" value="${esc(firstCol)}"><span class="dot-name">${esc(firstCol)}</span>`:'<div class="spacer"></div>'}
         ${p.price?`<button class="addbtn" data-act="addToCart" aria-label="Add ${esc(p.name)} to cart" title="Add to cart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>`:'<span class="muted small" style="white-space:nowrap">Coming soon</span>'}</div></div></div>`;
 }
 function builderPanel(){
@@ -954,7 +965,7 @@ function builderPanel(){
       <span class="chip ${have===n?'paid-yes':'paid-no'}">${have} of ${n} chosen</span></div>
       <div class="muted small" style="margin:-4px 0 10px">Pick ${n} different tracks.</div>
       <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px">${ps.map(p=>{const q=b.picks[p.id]||0;return `<div class="card" style="${q?'border:2px solid var(--accent)':''}">
-        <img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${q&&b.palette?rcAttrs(p,(b.colourMap||{})['p-'+p.id+'-0']):''}><div class="body" style="padding:10px;gap:6px"><b class="small">${esc(p.name)}</b>${q&&b.palette?`<span class="small muted" style="margin-top:-4px">${swatch((b.colourMap||{})['p-'+p.id+'-0'])}${esc((b.colourMap||{})['p-'+p.id+'-0']||'')}</span>`:''}
+        <img class="img" src="${imgOf(p)}" alt="" style="aspect-ratio:3/2"${b.palette?rcAttrs(p,q?(b.colourMap||{})['p-'+p.id+'-0']:(b.preview||{})[p.id]):''}><div class="body" style="padding:10px;gap:6px"><b class="small">${esc(p.name)}</b>${q&&b.palette?`<span class="small muted" style="margin-top:-4px">${swatch((b.colourMap||{})['p-'+p.id+'-0'])}${esc((b.colourMap||{})['p-'+p.id+'-0']||'')}</span>`:''}
         <button class="btn sm ${q?'primary':''}" data-act="bToggle" data-id="${p.id}" ${!q&&have>=n?'disabled':''}>${q?'✓ Chosen':'Choose'}</button></div></div>`;}).join('')}</div></div>`; };
   const complete=picked('basic')===num(k.chooseBasic)&&picked('premium')===num(k.choosePremium)&&(!k.colourChoice||!!b.palette);
   b.swaps=b.swaps||{};
@@ -964,6 +975,10 @@ function builderPanel(){
   const fixed=[...(k.presetBasic||[]),...(k.includes||[]).filter(i=>incOptions(i).length<2)];
   const choiceIdx=(k.includes||[]).map((i,idx)=>incOptions(i).length>1?idx:-1).filter(x=>x>=0);
   if(k.colourChoice&&b.palette) b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),b.colourMap);
+  // preview colours for premium tracks not picked yet (reshuffled with the colours; a picked track keeps its preview colour)
+  if(k.colourChoice&&b.palette){ const names=(paletteByName(b.palette)?.colours||[]).map(c=>c.name); b.preview=b.preview||{};
+    const need=Store.products.filter(p=>p.type==='part'&&p.tier==='premium'&&p.active&&!names.includes(b.preview[p.id]));
+    let deck=[]; need.forEach(p=>{ if(!deck.length) deck=[...names].sort(()=>Math.random()-.5); b.preview[p.id]=deck.pop()||''; }); }
   const left=num(k.choosePremium)-picked('premium');
   return `<div class="panel" id="builder" style="margin-top:20px;border:2px solid var(--accent)">
     <div class="row" style="margin-bottom:4px"><h2 style="margin:0">Build your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">✕ Close</button></div>
@@ -1018,7 +1033,7 @@ function extrasModal(){
       <button class="btn sm primary" data-act="exAdd" ${p.price?'':'disabled'}>Add</button></div>`;
   return `<div class="modal-bg" data-act="closeModal"><div class="modal" data-stop>
     <div class="row" style="margin-bottom:6px"><h2 style="margin:0">${just?'✅ Package added!':'Add extras'}</h2><div class="spacer"></div><button class="btn sm" data-act="closeModal">✕</button></div>
-    <p class="muted small" style="margin-top:0">${just?'Want to make your tower bigger? Add extra pieces or marbles below. They go in the same order.':'Extra pieces and marbles go in the same order as your package.'}</p>
+    <p class="muted small" style="margin-top:0">${just?'Want to make your tower bigger? Add individual tracks or marbles below. They go in the same order.':'Individual tracks and marbles go in the same order as your package.'}</p>
     ${['marbles','basic','premium','component'].map(t=>{const ps=parts.filter(p=>p.tier===t);return ps.length?`<div style="margin:14px 0 4px"><b>${t==='marbles'?'Extra marbles':'Extra '+TIER_PLURAL[t].toLowerCase()}</b></div>${ps.map(row).join('')}`:'';}).join('')}
     <div class="row" style="margin-top:16px;flex-wrap:wrap"><button class="btn" data-act="closeModal">Keep shopping</button><div class="spacer"></div>
       <a class="btn primary" href="#cart" data-act="closeModal">Go to cart (${cartCount()}) →</a></div>
@@ -1644,6 +1659,10 @@ const findCart = k => cart.find(x=>x.key===k);
 const actions = {
   shopTab:el=>{ui.shopTab=el.dataset.v;render();},
   cardQty:el=>{const i=el.closest('.card').querySelector('.cq');i.value=Math.max(1,(parseInt(i.value)||1)+Number(el.dataset.d));},
+  cardDot:el=>{ const card=el.closest('.card'), c=el.dataset.c; if(!card) return; ui.cardCol=ui.cardCol||{}; ui.cardCol[card.dataset.pid]=c;
+    card.querySelectorAll('.dot').forEach(d=>{ const on=d===el; d.classList.toggle('on',on); d.setAttribute('aria-checked',on); });
+    card.querySelector('input.colour').value=c; card.querySelector('.dot-name').textContent=c;
+    const im=card.querySelector('img[data-rcpid]')||card.querySelector('img'); if(im){ im.dataset.rc=colourHex(c); applyRecolour(card); } },
   addToCart:el=>{
     const card=el.closest('.card'), id=card.dataset.pid, qty=Math.max(1,parseInt(card.querySelector('.cq')?.value)||1), colour=card.querySelector('.colour')?.value||'';
     const ex=cart.find(l=>l.productId===id&&l.colour===colour&&!l.picks); ex?ex.qty+=qty:cart.push({key:uid(),productId:id,qty,colour});
@@ -1654,8 +1673,8 @@ const actions = {
   closeBuilder:()=>{ ui.builder=null; render(); },
   bSwap:el=>{ const b=ui.builder; b.swaps=b.swaps||{}; b.swaps[el.dataset.i]=el.dataset.id; render(); },
   bShufflePieces:()=>{ const b=ui.builder, k=Store.product(b.kitId); b.rbasic=randomBasics(k,Store.products,b.picks); render(); },
-  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); if(!b.palette) b.palette=palettes()[0]?.name||''; b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); render(); },
-  bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else b.picks[id]=1; render(); },
+  bShuffle:()=>{ const b=ui.builder, k=Store.product(b.kitId); if(!b.palette) b.palette=palettes()[0]?.name||''; b.colourMap=assignColours(packagePieces(k,b.picks,Store.products,b.swaps,b.rbasic).all,paletteByName(b.palette),{},true); b.preview={}; render(); },
+  bToggle:el=>{ const b=ui.builder, id=el.dataset.id; if(b.picks[id]) delete b.picks[id]; else { b.picks[id]=1; if(b.palette&&b.preview&&b.preview[id]) b.colourMap={...(b.colourMap||{}),['p-'+id+'-0']:b.preview[id]}; } render(); },
   bPick:el=>{ const b=ui.builder, id=el.dataset.id; b.picks[id]=Math.max(0,(b.picks[id]||0)+Number(el.dataset.d)); if(!b.picks[id]) delete b.picks[id]; render(); },
   bQty:el=>{ ui.builder.qty=Math.max(1,ui.builder.qty+Number(el.dataset.d)); render(); },
   bAdd:()=>{ const b=ui.builder, k=Store.product(b.kitId); cart.push({key:uid(),productId:k.id,qty:b.qty,colour:k.colourChoice?b.palette+' palette':'',palette:k.colourChoice?b.palette:'',colourMap:{...b.colourMap},picks:{...b.picks},marbles:b.marbles,swaps:{...(b.swaps||{})},...(b.rbasic?{rbasic:[...b.rbasic]}:{})});
@@ -1732,11 +1751,11 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',async e=>{
   const el=e.target, k=el.dataset.chg; if(!k) return;
-  if(k==='cardColour'||k==='exColour'){ const box=el.closest(k==='cardColour'?'.card':'.ex-row'), im=box?.querySelector('img[data-rcpid]'); if(im){ im.dataset.rc=colourHex(el.value); applyRecolour(box); } return; }
+  if(k==='cardColour'||k==='exColour'){ const box=el.closest(k==='cardColour'?'.card':'.ex-row'), im=box?.querySelector('img[data-rcpid]'); if(k==='cardColour'&&box?.dataset.pid){ ui.cardCol=ui.cardCol||{}; ui.cardCol[box.dataset.pid]=el.value; } if(im){ im.dataset.rc=colourHex(el.value); applyRecolour(box); } return; }
   if(k==='delivery'){ const keep=document.querySelector('form[data-form=checkout]'), vals=keep?Object.fromEntries(new FormData(keep)):null;
     ui.delivery=el.value; render(); if(vals){const f=document.querySelector('form[data-form=checkout]'); for(const [n,v] of Object.entries(vals)) if(f.elements[n]&&f.elements[n].type!=='radio') f.elements[n].value=v;} }
   if(k==='bMarble'){ ui.builder.marbles=el.value; render(); }
-  if(k==='bPalette'){ ui.builder.palette=el.value; ui.builder.colourMap=assignColours(packagePieces(Store.product(ui.builder.kitId),ui.builder.picks,Store.products,ui.builder.swaps,ui.builder.rbasic).all,paletteByName(el.value),{},true); render(); }
+  if(k==='bPalette'){ ui.builder.palette=el.value; ui.builder.colourMap=assignColours(packagePieces(Store.product(ui.builder.kitId),ui.builder.picks,Store.products,ui.builder.swaps,ui.builder.rbasic).all,paletteByName(el.value),{},true); ui.builder.preview={}; render(); }
   if(k==='orderStatus'){ Store.updateOrder(el.dataset.id,{status:el.value}); render(); toast('Status updated'); }
   if(k==='orderPaid'){ Store.updateOrder(el.dataset.id,{paid:el.value==='1'}); render(); toast(el.value==='1'?'Marked as paid':'Marked as unpaid'); }
   if(k==='orderNotes'){ Store.updateOrder(el.dataset.id,{adminNotes:el.value}); toast('Note saved'); }
