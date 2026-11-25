@@ -105,6 +105,8 @@ main{padding:22px 0 60px}
 .pop{background:var(--card);color:var(--ink);border-radius:20px;padding:22px 20px 14px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;animation:popin .18s ease-out}
 .pop-tick{width:48px;height:48px;border-radius:50%;background:var(--ok-bg,#E6F4EC);color:var(--ok,#22794F);display:grid;place-items:center;font-size:26px;font-weight:800;margin-bottom:10px}
 @keyframes popin{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}} @keyframes popfade{from{opacity:0}to{opacity:1}}
+.smail{border:2px solid var(--accent);border-radius:14px;padding:12px 14px;margin:0 0 14px;background:var(--soft)}
+.smail textarea{font-size:15px;line-height:1.5}
 .disc-box{display:flex;gap:8px;align-items:center;margin:4px 0 12px}
 .disc-box input{flex:1;min-width:0;text-transform:uppercase}
 .disc-box.on{background:var(--ok-bg,#E6F4EC);border:1px solid var(--ok-line,#BFE3CC);border-radius:12px;padding:10px 12px}
@@ -150,6 +152,7 @@ header.top .btn{white-space:nowrap}
 .radio-card input{margin-top:3px}
 .empty{text-align:center;padding:40px 10px;color:var(--muted)}
 .chip{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:800;text-transform:capitalize;white-space:nowrap}
+.chip[class*=st-]{text-transform:none}
 .st-new{background:#FDECE6;color:#C2410C}.st-confirmed{background:#E6EDFC;color:#2752BA}.st-printing{background:#EFE9FB;color:#6142C2}
 .st-ready{background:#FFF4D6;color:#9A6B00}.st-completed{background:#E5F5EC;color:#22794F}.st-cancelled{background:#EEE;color:#777}
 .paid-yes{background:#E5F5EC;color:#22794F}.paid-no{background:#F7EEE3;color:#9A5B12}
@@ -352,7 +355,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.78'; // bump with each update
+const APP_VERSION = '0.79'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -372,7 +375,9 @@ const COLOUR_HEX = {
   'Red':'#E4572E','Blue':'#2F5FD0','Yellow':'#F3B61F','Green':'#2E9E6A','Purple':'#7B5CD6',
   'Orange':'#F08A24','Black':'#2A2A2A','White':'#F4F4F4','Pink':'#EC6FA6','Rainbow mix':'linear-gradient(90deg,#E4572E,#F3B61F,#2E9E6A,#2F5FD0,#7B5CD6)'
 };
-const STATUSES = ['new','confirmed','printing','ready','completed','cancelled'];
+const STATUSES = ['new','printing','ready','completed','cancelled'];
+const STATUS_LABEL = {new:'New',confirmed:'Confirmed',printing:'Manufacturing',ready:'Ready to collect',completed:'Completed',cancelled:'Cancelled'};
+const statusLabel = (st,o) => st==='ready'&&o&&o.delivery==='post'?'Ready to post':(STATUS_LABEL[st]||st);
 const DEFAULT_PALETTES = [
   {name:'Rainbow',active:true,colours:[{name:'Red',hex:'#E4572E'},{name:'Yellow',hex:'#F3B61F'},{name:'Blue',hex:'#2F5FD0'},{name:'Green',hex:'#2E9E6A'}]},
   {name:'Ocean',active:true,colours:[{name:'Navy',hex:'#1F3A93'},{name:'Sky Blue',hex:'#4A9BEA'},{name:'Teal',hex:'#1ABC9C'},{name:'White',hex:'#F2F2F2'}]},
@@ -755,6 +760,17 @@ function seed(){
     colours:'Red, Blue, Yellow, Green, Purple, Orange, Black, White, Pink, Rainbow mix',
     adminPin:'1234', costs:C, palettes:JSON.parse(JSON.stringify(DEFAULT_PALETTES)) }};
 }
+// order numbers: MM-10000, MM-10001, … (live: a shared counter in the database; preview: next after the highest so far)
+const FIRST_ORDER_NO = 10000;
+async function nextOrderNumber(){
+  if(CLOUD&&Cloud.db){
+    try{ const ref=Cloud.db.doc('counters/orders');
+      const n=await Cloud.db.runTransaction(async tx=>{ const d=await tx.get(ref), n=d.exists?Math.max(FIRST_ORDER_NO,num(d.data().n)+1):FIRST_ORDER_NO; tx.set(ref,{n}); return n; });
+      return 'MM-'+n; }
+    catch(e){ console.warn('Order counter unavailable, using a fallback number',e); return orderNumber(); } }
+  const max=Store.orders.reduce((m,o)=>{ const x=/^MM-(\d{5,})$/.exec(o.number||''); return x?Math.max(m,+x[1]):m; },FIRST_ORDER_NO-1);
+  return 'MM-'+(max+1);
+}
 function orderNumber(t=Date.now()){
   const d=new Date(t); return 'MM-'+String(d.getFullYear()).slice(2)+String(d.getMonth()+1).padStart(2,'0')+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
 }
@@ -939,6 +955,7 @@ if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListene
 const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"></span>` : '';
 
 const PICKUP_PLACE = 'Local pickup from Palmview, Sunshine Coast';
+const PICKUP_ADDRESS = '2/17 Dulcet Way, Palmview QLD 4553'; // only given to customers in the ready-to-collect email
 const pickupText = () => { const n=(Store.settings.pickupNote||'').trim(); return !n||/^Local pickup on the Sunshine Coast/i.test(n)?PICKUP_PLACE+". We'll message you to arrange a time.":n; };
 function header(){
   const s=Store.settings, r=route();
@@ -1149,7 +1166,7 @@ function viewCheckout(){
       <p class="muted small" style="margin:10px 0 0">No payment is taken now. You'll get an invoice with payment details, and we start printing once it's paid.</p>
     </div></form>`;
 }
-function submitCheckout(form){
+async function submitCheckout(form){
   const f=Object.fromEntries(new FormData(form)), post=ui.delivery==='post', err=[];
   if(!f.name?.trim())err.push('name'); if(!f.phone?.trim())err.push('phone');
   if(!/^\S+@\S+\.\S+$/.test(f.email||''))err.push('a valid email'); if(post&&!f.address?.trim())err.push('postal address');
@@ -1157,8 +1174,8 @@ function submitCheckout(form){
   if(err.length){ $('#ck-err').textContent='Please enter your '+err.join(', ')+'.'; return; }
   const c=Store.settings.costs, t=totals(ui.delivery);
   const btn=form.querySelector('button[type=submit]'); if(btn){ btn.disabled=true; btn.textContent='Sending order…'; }
-  const cloudCust=CLOUD&&!Cloud.isAdmin;
-  Store.addOrder({ id:uid(), number:orderNumber(), createdAt:Date.now(),
+  const cloudCust=CLOUD&&!Cloud.isAdmin, number=await nextOrderNumber();
+  Store.addOrder({ id:uid(), number, createdAt:Date.now(),
     customer:{name:f.name.trim(),email:f.email.trim(),phone:f.phone.trim(),address:post?f.address.trim():''}, delivery:ui.delivery,
     items:cartLines().map(l=>makeLine(l.product,l,Store.products,c)),
     subtotal:t.subtotal, shipping:t.shipping, ...(t.discountInfo?{discount:t.discountInfo}:{}), total:t.total, status:'new', paid:false, notes:(f.notes||'').trim(), adminNotes:'',
@@ -1284,11 +1301,11 @@ function adminOrders(){
       <div class="spacer"></div><input type="text" placeholder="Search name or order no." value="${esc(ui.orderSearch)}" data-inp="orderSearch" style="max-width:240px"></div>
     <div class="panel" style="padding:6px 10px">${list.length?`<div class="m-only">${list.map(o=>`<div class="o-card" data-act="openOrder" data-id="${o.id}">
         <div class="row"><b>${esc(o.number)}</b>${o.demo?'<span class="muted small">demo</span>':''}<div class="spacer"></div><b>${money(o.total)}</b>${!o.demo&&!checkOrder(o).ok?'<span title="Total needs checking">⚠️</span>':''}</div>
-        <div class="row" style="margin-top:3px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.customer.name)}</span><div class="spacer"></div><span class="chip st-${o.status}">${o.status}</span><span class="chip ${o.paid?'paid-yes':'paid-no'}">${o.paid?'Paid':'Unpaid'}</span></div>
+        <div class="row" style="margin-top:3px"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(o.customer.name)}</span><div class="spacer"></div><span class="chip st-${o.status}">${statusLabel(o.status,o)}</span><span class="chip ${o.paid?'paid-yes':'paid-no'}">${o.paid?'Paid':'Unpaid'}</span></div>
         <div class="muted small" style="margin-top:2px">${fmtDateTime(o.createdAt)} · ${o.delivery==='post'?'📮 Post':'🤝 Pickup'}</div></div>`).join('')}</div>
       <table class="t desk-only"><thead><tr><th>Order</th><th class="hide-m">Date</th><th>Customer</th><th class="hide-m">Delivery</th><th>Status</th><th>Paid</th><th class="num">Total</th></tr></thead><tbody>
       ${list.map(o=>`<tr class="click" data-act="openOrder" data-id="${o.id}"><td><b>${esc(o.number)}</b>${o.demo?' <span class="muted small">demo</span>':''}</td><td class="hide-m muted">${fmtDateTime(o.createdAt)}</td>
-        <td>${esc(o.customer.name)}</td><td class="hide-m">${o.delivery==='post'?'📮 Post':'🤝 Pickup'}</td><td><span class="chip st-${o.status}">${o.status}</span></td>
+        <td>${esc(o.customer.name)}</td><td class="hide-m">${o.delivery==='post'?'📮 Post':'🤝 Pickup'}</td><td><span class="chip st-${o.status}">${statusLabel(o.status,o)}</span></td>
         <td><span class="chip ${o.paid?'paid-yes':'paid-no'}">${o.paid?'Paid':'Unpaid'}</span></td><td class="num"><b>${money(o.total)}</b>${!o.demo&&!checkOrder(o).ok?' <span title="Total needs checking">⚠️</span>':''}</td></tr>`).join('')}
       </tbody></table>`:`<div class="empty">No orders here.</div>`}</div>`;
 }
@@ -1298,10 +1315,11 @@ function orderModal(o){
     <div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">${esc(o.number)}</h2><button class="btn sm" data-act="closeModal">✕</button></div>
     <div class="muted small" style="margin-bottom:14px">Placed ${fmtDateTime(o.createdAt)}</div>
     <div class="form-grid two-m" style="margin-bottom:14px">
-      <label class="f">Status<select data-chg="orderStatus" data-id="${o.id}">${STATUSES.map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${s[0].toUpperCase()+s.slice(1)}</option>`).join('')}</select></label>
+      <label class="f">Status<select data-chg="orderStatus" data-id="${o.id}">${(STATUSES.includes(o.status)?STATUSES:[o.status,...STATUSES]).map(s=>`<option value="${s}" ${o.status===s?'selected':''}>${statusLabel(s,o)}</option>`).join('')}</select></label>
       <label class="f">Payment<select data-chg="orderPaid" data-id="${o.id}"><option value="0" ${!o.paid?'selected':''}>Unpaid</option><option value="1" ${o.paid?'selected':''}>Paid</option></select></label></div>
+    ${statusMailBox(o)}
     <div class="panel" style="box-shadow:none;margin-bottom:12px"><b>${esc(c.name)}</b><br><span class="small">${esc(c.email)} · ${esc(c.phone)}</span><br>
-      <span class="small">${o.delivery==='post'?'📮 Post to: '+esc(c.address):'🤝 Pickup'}</span>
+      <span class="small">${o.delivery==='post'?'📮 Post to: '+esc(c.address):'🤝 Local pickup'}</span>
       ${o.notes?`<div class="small" style="margin-top:8px;background:var(--bg);padding:8px;border-radius:8px"><b>Customer note:</b> ${esc(o.notes)}</div>`:''}</div>
     ${checkBox(o)}
     <b>Order</b>
@@ -1388,6 +1406,40 @@ function emailNewOrderHTML(o){
     <div style="font-weight:bold;margin:16px 0 6px">🖨️ Print & pack list</div>
     <ul style="font-size:14px;margin:0;padding-left:18px">${rows.map(([n,c,q])=>`<li>${q} × ${esc(n)}${c?` — ${esc(c)}`:''}</li>`).join('')}${packs.map(([n,q])=>`<li>${q} × ${esc(n)}</li>`).join('')}</ul>
     <p style="margin-top:20px"><a href="${ADMIN_LINK}" style="background:#2F5FD0;color:#fff;padding:10px 18px;border-radius:999px;text-decoration:none;font-weight:bold">Open in admin</a></p>`);
+}
+/* ---------- status update emails ---------- */
+function statusMailText(o, st){
+  const first=esc((o.customer.name||'').split(' ')[0]||'there'), s=Store.settings, post=o.delivery==='post';
+  const T={
+    confirmed:`Your order ${o.number} is confirmed. ${o.paid?'Thanks for your payment.':'We\'ll start printing as soon as your payment is received.'} We'll keep you posted.`,
+    printing:`Good news! Your order ${o.number} is now being printed and made. We'll let you know as soon as it's ready${post?' to post':' to collect'}.`,
+    ready:post?`Your order ${o.number} is ready and will be posted to you shortly.`:`Your order ${o.number} is ready to collect from ${PICKUP_ADDRESS}.\n\nPlease reply to this email with a window of time when you'd like to collect, and we'll let you know if that suits.`,
+    completed:`Thanks for ${post?'your order':'collecting your order'} ${o.number}. We hope you enjoy your Marble Motion! If you have a minute, we'd love to see photos of your tower.`,
+    cancelled:`Your order ${o.number} has been cancelled. ${o.paid?'Any payment you\'ve made will be refunded to you.':''} If this is a surprise, just reply to this email and we'll sort it out.`};
+  return T[st]?`Hi ${(o.customer.name||'').split(' ')[0]||'there'},\n\n${T[st]}`:'';
+}
+function statusMailSubject(o, st){ return `${statusLabel(st,o)}: your ${Store.settings.shopName||'Marble Motion'} order ${o.number}`; }
+function emailStatusHTML(o, st, text){
+  const s=Store.settings, bank=[s.accountName&&`Account name: <b>${esc(s.accountName)}</b>`,s.bsb&&`BSB: <b>${esc(s.bsb)}</b>`,s.accountNo&&`Account: <b>${esc(s.accountNo)}</b>`,s.payId&&`PayID: <b>${esc(s.payId)}</b>`].filter(Boolean);
+  const colour={confirmed:'#2752BA',printing:'#6142C2',ready:'#9A6B00',completed:'#22794F',cancelled:'#777'}[st]||'#1F2430';
+  return eWrap(`<div style="font-size:22px;font-weight:bold">${esc(s.shopName)}</div>
+    <div style="display:inline-block;margin:12px 0 6px;padding:4px 12px;border-radius:999px;background:#F6F2EA;color:${colour};font-weight:bold;font-size:14px">${esc(statusLabel(st,o))}</div>
+    <div style="font-size:15px;line-height:1.6;margin:10px 0 16px">${esc(text).replace(/\n/g,'<br>')}</div>
+    <div style="background:#F6F2EA;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.6"><b>Order ${esc(o.number)}</b> · ${money(o.total)}<br>
+      ${o.items.map(i=>`${i.qty} × ${esc(i.name)}${i.colour?` <span style="color:#777">(${esc(i.colour)})</span>`:''}`).join('<br>')}</div>
+    ${st==='ready'&&o.delivery!=='post'?`<div style="background:#E5F5EC;border-radius:10px;padding:12px 14px;margin-top:14px;font-size:14px;line-height:1.6;color:#1C5E3D"><b>📍 Pickup address</b><br>${esc(PICKUP_ADDRESS)}</div>`:''}
+    <p style="font-size:13px;color:#777;margin-top:16px">Questions? Just reply to this email${s.contactPhone?` or call ${esc(s.contactPhone)}`:''}.</p>`);
+}
+function statusMailBox(o){
+  const m=ui.statusMail&&ui.statusMail.id===o.id?ui.statusMail:null, log=o.emailLog||[];
+  const logLine=log.length?`<div class="small muted" style="margin-top:6px">📧 Emails sent: ${log.map(l=>`${esc(statusLabel(l.status,o))} (${fmtDateTime(l.at)})`).join(' · ')}</div>`:'';
+  if(!m){ const can=!!statusMailText(o,o.status);
+    return `<div style="margin:-4px 0 14px">${can?`<button class="btn sm" data-act="statusMailOpen" data-id="${o.id}">📧 Email customer: ${esc(statusLabel(o.status,o))}</button>`:''}${logLine}</div>`; }
+  return `<div class="smail"><div class="row" style="gap:8px;margin-bottom:6px"><b>📧 Let ${esc((o.customer.name||'the customer').split(' ')[0])} know?</b><div class="spacer"></div><span class="chip st-${m.status}">${esc(statusLabel(m.status,o))}</span></div>
+    <div class="small muted" style="margin-bottom:6px">To ${esc(o.customer.email)} · Subject: ${esc(statusMailSubject(o,m.status))}</div>
+    <textarea id="smail-text" rows="8">${esc(m.text)}</textarea>
+    <div class="small muted" style="margin:4px 0 10px">The email also lists their order${m.status==='ready'&&o.delivery!=='post'?' and the pickup address':''}. Edit the message if you like.</div>
+    <div class="row" style="gap:8px"><button class="btn primary" data-act="statusMailSend" data-id="${o.id}" ${m.sending?'disabled':''}>${m.sending?'Sending…':'Send email'}</button><button class="btn" data-act="statusMailSkip">Not now</button></div>${logLine}</div>`;
 }
 function sendOrderEmails(o){
   o.emailStatus='sending';
@@ -1734,6 +1786,15 @@ function _renderModal(){
 const findCart = k => cart.find(x=>x.key===k);
 const actions = {
   shopTab:el=>{ui.shopTab=el.dataset.v;render();},
+  statusMailOpen:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; ui.statusMail={id:o.id,status:o.status,text:statusMailText(o,o.status)}; renderModal(); },
+  statusMailSkip:()=>{ ui.statusMail=null; renderModal(); },
+  statusMailSend:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id), m=ui.statusMail; if(!o||!m) return;
+    m.text=($('#smail-text')?.value||m.text).trim(); if(!m.text){ toast('Write a message first'); return; }
+    if(!CLOUD){ toast('Preview only: emails send from the live site'); return; }
+    m.sending=true; renderModal();
+    sendEmail(o.customer.email, statusMailSubject(o,m.status), emailStatusHTML(o,m.status,m.text), Store.settings.contactEmail||notifyEmail())
+      .then(()=>{ Store.updateOrder(o.id,{emailLog:[...(o.emailLog||[]),{status:m.status,at:Date.now()}]}); ui.statusMail=null; render(); toast('📧 Email sent to '+o.customer.email); })
+      .catch(e=>{ console.warn('Status email failed',e); m.sending=false; renderModal(); toast('⚠️ Email didn\'t send ('+(e.text||e.message||'error')+'). Try again.'); }); },
   discAdd:()=>{ const s=Store.settings; s.discountCodes=[...(s.discountCodes||[]),{code:'',type:'percent',value:10,minSpend:0,active:true}]; Store.save(); render(); setTimeout(()=>{ const ins=document.querySelectorAll('.dc-code'); ins[ins.length-1]?.focus(); },50); },
   discDel:el=>{ const s=Store.settings, c=(s.discountCodes||[])[el.dataset.i]; confirmBox(`Delete the code ${c?.code||''}? Customers won't be able to use it any more.`,()=>{ s.discountCodes.splice(el.dataset.i,1); Store.save(); render(); toast('Code deleted'); }); },
   discRemove:()=>{ setDiscCode(''); render(); },
@@ -1776,7 +1837,7 @@ const actions = {
   openOrder:el=>{ui.viewOrder=el.dataset.id;ui.invoiceOpen=false;renderModal();},
   viewInvoice:()=>{ui.invoiceOpen=true;renderModal();},
   closeInvoice:()=>{ui.invoiceOpen=false;renderModal();},
-  closeModal:()=>{ui.editing=null;ui.viewOrder=null;ui.invoiceOpen=false;ui.extras=null;render();},
+  closeModal:()=>{ui.statusMail=null;ui.editing=null;ui.viewOrder=null;ui.invoiceOpen=false;ui.extras=null;render();},
   syncRetry:()=>Cloud.retry(),
   syncReload:()=>Cloud.reloadFromShop(),
   fixOrderTotal:el=>{ const o=Store.orders.find(x=>x.id===el.dataset.id); if(!o) return; const k=checkOrder(o), c=Store.settings.costs;
@@ -1843,7 +1904,7 @@ document.addEventListener('change',async e=>{
     ui.delivery=el.value; render(); if(vals){const f=document.querySelector('form[data-form=checkout]'); for(const [n,v] of Object.entries(vals)) if(f.elements[n]&&f.elements[n].type!=='radio') f.elements[n].value=v;} }
   if(k==='bMarble'){ ui.builder.marbles=el.value; render(); }
   if(k==='bPalette'){ ui.builder.palette=el.value; ui.builder.colourMap=assignColours(packagePieces(Store.product(ui.builder.kitId),ui.builder.picks,Store.products,ui.builder.swaps,ui.builder.rbasic).all,paletteByName(el.value),{},true); ui.builder.preview={}; render(); }
-  if(k==='orderStatus'){ Store.updateOrder(el.dataset.id,{status:el.value}); render(); toast('Status updated'); }
+  if(k==='orderStatus'){ const o=Store.orders.find(x=>x.id===el.dataset.id); Store.updateOrder(el.dataset.id,{status:el.value}); const t=o&&o.customer?.email?statusMailText({...o,status:el.value},el.value):''; ui.statusMail=t?{id:el.dataset.id,status:el.value,text:t}:null; render(); toast('Status updated'); }
   if(k==='orderPaid'){ Store.updateOrder(el.dataset.id,{paid:el.value==='1'}); render(); toast(el.value==='1'?'Marked as paid':'Marked as unpaid'); }
   if(k==='orderNotes'){ Store.updateOrder(el.dataset.id,{adminNotes:el.value}); toast('Note saved'); }
   if(k==='productImage'){ const file=el.files[0]; if(!file) return; syncEditor(); try{ ui.editing.image=await resizeImage(file); }catch(err){ toast('Could not read that image'); } renderModal(); }
