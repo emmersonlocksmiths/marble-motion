@@ -238,6 +238,8 @@ body{overscroll-behavior-y:none}
 @media (min-width:820px){ .kit-card{flex-direction:row} .kit-card .img{width:46%;aspect-ratio:auto;min-height:100%;object-fit:cover} .kit-card .body{padding:22px} }
 /* package builder: picks on the left, sticky 3D preview + total on the right */
 .builder-grid{display:block}
+.b-colours{border-bottom:1px solid var(--line);margin-bottom:16px}
+@media (min-width:761px){ .b-colours .pal-grid{grid-template-columns:repeat(auto-fill,minmax(210px,1fr))} }
 @media (min-width:980px){
   .builder-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:26px;align-items:start}
   .b-right{position:sticky;top:84px}
@@ -357,7 +359,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.82'; // bump with each update
+const APP_VERSION = '0.83'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -1062,6 +1064,7 @@ function builderPanel(){
   return `<div class="panel" id="builder" style="margin-top:20px;border:2px solid var(--accent)">
     <div class="row" style="margin-bottom:4px"><h2 style="margin:0">Build your ${esc(k.name)}</h2><div class="spacer"></div><button class="btn sm" data-act="closeBuilder">✕ Close</button></div>
     <p class="muted small" style="margin-top:0">${esc(k.description)}</p>
+    ${k.colourChoice?`<div class="b-colours">${colourSection(k,b)}</div>`:''}
     <div class="builder-grid"><div class="b-left">
     ${fixed.length?`<div class="includes" style="margin-bottom:18px"><b>Already in your package</b>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-top:8px">${fixed.map(i=>{const p=Store.product(i.partId);return p?`<span class="row" style="gap:6px;background:var(--field);border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px"><img src="${imgOf(p)}" style="width:26px;height:26px;border-radius:6px;object-fit:contain;background:var(--imgbg)" alt=""${b.palette?rcAttrs(p,(b.colourMap||{})[(p.tier==='basic'&&(k.presetBasic||[]).includes(i)?'b-'+(k.presetBasic||[]).indexOf(i):'c-'+p.id)+'-0']):''}><span class="small">${i.qty>1?i.qty+' × ':''}${esc(p.name)}${b.palette?(()=>{const pre=p.tier==='basic'&&(k.presetBasic||[]).includes(i)?'b-'+(k.presetBasic||[]).indexOf(i):'c-'+p.id;
@@ -1076,12 +1079,12 @@ function builderPanel(){
       <div class="shuf"><button class="btn" data-act="bShufflePieces">🎲 Shuffle tracks</button>${k.colourChoice?`<button class="btn primary" data-act="bShuffle">🎨 Shuffle colours</button>`:''}</div></div>
       <div class="pc-grid">${basicTiles(k,b).map(t=>{const p=Store.product(t.id), c=(b.colourMap||{})[t.key];return p?`<div class="pc-tile"><img src="${imgOf(p)}" alt=""${b.palette?rcAttrs(p,c):''}><div class="pc-name"${b.palette?'':' style="padding-bottom:8px"'}>${esc(p.name)}</div>${b.palette?`<div class="pc-col">${swatch(c)}${esc(c||'')}</div>`:''}</div>`:'';}).join('')}</div></div>`:''}
     ${section('premium',num(k.choosePremium))}${section('basic',num(k.chooseBasic))}
+    </div><div class="b-right">
     <div class="form-grid" style="margin-bottom:16px">
       ${k.marbleChoice?`<div><b>Your marbles (10 pack)</b><div style="display:grid;gap:8px;margin-top:8px">${marblePacks(Store.products).map(m=>{const up=marbleUpgrade(k,m.id,Store.products);
         return `<label class="radio-card ${b.marbles===m.id?'on':''}"><input type="radio" name="bm" value="${m.id}" ${b.marbles===m.id?'checked':''} data-chg="bMarble"><div style="flex:1">${esc(m.name)}</div><b>${up?'+'+money(up):'Included'}</b></label>`;}).join('')}</div></div>`:''}
     </div>
-    </div><div class="b-right">
-    ${k.colourChoice?colourSection(k,b):''}
+
     <div class="b-footer">
       <div class="qty"><button data-act="bQty" data-d="-1">−</button><input value="${b.qty}" readonly><button data-act="bQty" data-d="1">+</button></div>
       <div class="spacer"></div><span class="price">${money(unit*b.qty)}</span>
