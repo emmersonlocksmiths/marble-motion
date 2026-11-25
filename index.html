@@ -103,6 +103,8 @@ main{padding:22px 0 60px}
 .row{display:flex;gap:8px;align-items:center}
 .pop-bg{position:fixed;inset:0;z-index:70;background:rgba(15,18,25,.45);display:flex;align-items:center;justify-content:center;padding:20px;animation:popfade .15s ease-out}
 .pop{background:var(--card);color:var(--ink);border-radius:20px;padding:22px 20px 14px;width:100%;max-width:340px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3);display:flex;flex-direction:column;align-items:center;animation:popin .18s ease-out}
+.conn-note{background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:14px;text-align:left;margin-bottom:14px;line-height:1.45}
+.card.flash{box-shadow:0 0 0 3px var(--accent),var(--shadow);transition:box-shadow .3s}
 .pop-tick{width:48px;height:48px;border-radius:50%;background:var(--ok-bg,#E6F4EC);color:var(--ok,#22794F);display:grid;place-items:center;font-size:26px;font-weight:800;margin-bottom:10px}
 @keyframes popin{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}} @keyframes popfade{from{opacity:0}to{opacity:1}}
 .smail{border:2px solid var(--accent);border-radius:14px;padding:12px 14px;margin:0 0 14px;background:var(--soft)}
@@ -355,7 +357,7 @@ const ADMIN_EMAILS = ['service@emmersonlocksmiths.com.au'];
 const CLOUD = /(^|\.)github\.io$/i.test(location.hostname) || /marble-motion\.(web\.app|firebaseapp\.com)$/i.test(location.hostname);
 const EMAILJS = {serviceId:'service_er48ren', templateId:'template_marble_motion', publicKey:'nfvFeL6UUjWBQJjPX'}; // same EmailJS account as Sitedoor Survey
 const ADMIN_LINK = 'https://emmersonlocksmiths.github.io/marble-motion/#admin';
-const APP_VERSION = '0.80'; // bump with each update
+const APP_VERSION = '0.81'; // bump with each update
 const REQUIRE_PIN = false; // TEMP: admin PIN switched off for testing — set to true before going live
 const LS_KEY = 'mm_data_v6', CART_KEY = 'mm_cart_v6', ADMIN_KEY = 'mm_admin_v1';
 const $ = s => document.querySelector(s);
@@ -960,6 +962,8 @@ const swatch = c => c ? `<span class="swatch" style="background:${colourHex(c)}"
 const PICKUP_PLACE = 'Local pickup from Palmview, Sunshine Coast';
 const PICKUP_ADDRESS = '2/17 Dulcet Way, Palmview QLD 4553'; // only given to customers in the ready-to-collect email
 const pickupText = () => { const n=(Store.settings.pickupNote||'').trim(); return !n||/^Local pickup on the Sunshine Coast/i.test(n)?PICKUP_PLACE+". We'll message you to arrange a time.":n; };
+// the connectors pack (found by name, so it still works if you rename or re-add it)
+const connectorProduct = () => Store.products.find(p=>p.type==='part'&&p.active&&p.price&&/connector/i.test(p.name));
 function header(){
   const s=Store.settings, r=route();
   return `<header class="top"><div class="wrap">
@@ -1771,6 +1775,14 @@ function renderModal(){ _renderModal(); applyRecolour($('#modal-root')); }
 function _renderModal(){
   const m=$('#modal-root'), r=route();
   if(ui.showTerms){ m.innerHTML=`<div class="modal-bg" data-act="closeTerms"><div class="modal" data-stop style="max-width:760px"><div class="modal-head"><b>Terms &amp; Conditions</b><div class="spacer"></div><button class="btn primary sm" data-act="closeTerms">Close</button></div>${termsHTML()}</div></div>`; return; }
+  if(r==='shop'&&ui.connTip){ const t=ui.connTip, conn=connectorProduct();
+    m.innerHTML=`<div class="pop-bg" data-act="connClose"><div class="pop" data-stop role="dialog" aria-label="Added to cart">
+      <div class="pop-tick" aria-hidden="true">✓</div><b style="font-size:18px">Added to your cart</b>
+      <div class="muted small" style="margin:4px 0 12px">${t.qty>1?t.qty+' × ':''}${esc(t.name)}${t.colour?' · '+esc(t.colour):''}</div>
+      <div class="conn-note">🔗 Tracks join together with connectors. If you don't have spare connectors, you may need to add a pack${conn?` (${esc(conn.name)}, ${money(conn.price)})`:''}.</div>
+      <button class="btn primary" style="width:100%" data-act="connAdd">Add connectors</button>
+      <button class="btn" style="width:100%;margin-top:8px" data-act="connClose">No thanks, keep browsing</button>
+      <button class="linkbtn small" style="margin-top:12px" data-act="connNever">Don't remind me again</button></div></div>`; return; }
   if(r==='shop'&&ui.added){ const a=ui.added; m.innerHTML=`<div class="pop-bg" data-act="closeAdded"><div class="pop" data-stop role="dialog" aria-label="Added to cart">
       <div class="pop-tick" aria-hidden="true">✓</div><b style="font-size:18px">Added to your cart</b>
       <div class="muted small" style="margin:4px 0 16px">${a.qty>1?a.qty+' × ':''}${esc(a.name)} · ${money(a.price)}</div>
@@ -1812,8 +1824,15 @@ const actions = {
   addToCart:el=>{
     const card=el.closest('.card'), id=card.dataset.pid, qty=Math.max(1,parseInt(card.querySelector('.cq')?.value)||1), colour=card.querySelector('.colour')?.value||'';
     const ex=cart.find(l=>l.productId===id&&l.colour===colour&&!l.picks); ex?ex.qty+=qty:cart.push({key:uid(),productId:id,qty,colour});
-    saveCart(); render(); toast(`Added ${qty} × ${Store.product(id).name}`);
+    saveCart(); render();
+    const p=Store.product(id), conn=connectorProduct();
+    if(p&&['basic','premium'].includes(p.tier)&&conn&&!ui.noConnTip&&!cart.some(l=>l.productId===conn.id)){ ui.connTip={name:p.name,colour,qty}; renderModal(); }
+    else toast(`Added ${qty} × ${p.name}`);
   },
+  connAdd:()=>{ const conn=connectorProduct(); ui.connTip=null; ui.shopTab='parts'; render();
+    const c=conn&&document.querySelector(`.card[data-pid="${conn.id}"]`); if(c){ c.scrollIntoView({behavior:'smooth',block:'center'}); c.classList.add('flash'); setTimeout(()=>c.classList.remove('flash'),2200); } },
+  connClose:()=>{ ui.connTip=null; renderModal(); },
+  connNever:()=>{ ui.connTip=null; ui.noConnTip=true; renderModal(); },
   openBuilder:el=>{ if(ui.builder?.kitId!==el.dataset.id){ const d=defaultMarble(Store.products); ui.builder={kitId:el.dataset.id,picks:{},marbles:d?.id||'',swaps:{},palette:'',colourMap:{},qty:1}; }
     render(); setTimeout(()=>document.getElementById('builder')?.scrollIntoView({behavior:'smooth',block:'start'}),30); },
   closeBuilder:()=>{ ui.builder=null; render(); },
